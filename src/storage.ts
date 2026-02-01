@@ -9,6 +9,7 @@ export interface Credentials {
   username: string;
   token: string;
   empire: string;
+  playStyle: string;
 }
 
 export interface StoredData {

@@ -28,19 +28,23 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-// Startup screen - only asks for play style
+// Startup screen - only asks for play style on first run
 function StartupScreen({ onStart }: { onStart: (playStyle: string, credentials: Credentials | null, newPlayer: { username: string; empire: EmpireID } | null) => void }) {
   const [phase, setPhase] = useState<'loading' | 'playstyle' | 'generating'>('loading');
-  const [credentials, setCredentials] = useState<Credentials | null>(null);
   const [playStyle, setPlayStyle] = useState('');
   const { exit } = useApp();
 
   useEffect(() => {
     loadCredentials().then((creds) => {
-      setCredentials(creds);
-      setPhase('playstyle');
+      if (creds && creds.playStyle) {
+        // Existing player with saved play style - start immediately
+        onStart(creds.playStyle, creds, null);
+      } else {
+        // New player - ask for play style
+        setPhase('playstyle');
+      }
     });
-  }, []);
+  }, [onStart]);
 
   useInput((input, key) => {
     if (key.ctrl && input === 'c') {
@@ -51,23 +55,18 @@ function StartupScreen({ onStart }: { onStart: (playStyle: string, credentials: 
   const handlePlayStyleSubmit = async () => {
     if (!playStyle.trim()) return;
 
-    if (credentials) {
-      // Existing player - just start with the play style
-      onStart(playStyle, credentials, null);
-    } else {
-      // New player - generate username and empire with LLM
-      setPhase('generating');
+    // New player - generate username and empire with LLM
+    setPhase('generating');
 
-      try {
-        const adapter = createAdapter(adapterType);
-        const identity = await adapter.generateIdentity(playStyle);
-        onStart(playStyle, null, { username: identity.username, empire: identity.empire });
-      } catch (error) {
-        console.error('Failed to generate identity:', error);
-        // Fallback
-        const fallbackName = `Pilot${Math.floor(Math.random() * 10000)}`;
-        onStart(playStyle, null, { username: fallbackName, empire: 'outerrim' });
-      }
+    try {
+      const adapter = createAdapter(adapterType);
+      const identity = await adapter.generateIdentity(playStyle);
+      onStart(playStyle, null, { username: identity.username, empire: identity.empire });
+    } catch (error) {
+      console.error('Failed to generate identity:', error);
+      // Fallback
+      const fallbackName = `Pilot${Math.floor(Math.random() * 10000)}`;
+      onStart(playStyle, null, { username: fallbackName, empire: 'outerrim' });
     }
   };
 
@@ -113,17 +112,9 @@ function StartupScreen({ onStart }: { onStart: (playStyle: string, credentials: 
         <Text color="green" bold>{adapterType.toUpperCase()}</Text>
       </Box>
 
-      {credentials ? (
-        <Box marginBottom={1}>
-          <Text color="green">
-            Welcome back, <Text bold>{credentials.username}</Text>!
-          </Text>
-        </Box>
-      ) : (
-        <Box marginBottom={1}>
-          <Text color="cyan">New pilot - identity will be generated based on your play style</Text>
-        </Box>
-      )}
+      <Box marginBottom={1}>
+        <Text color="cyan">New pilot - identity will be generated based on your play style</Text>
+      </Box>
 
       <Box flexDirection="column">
         <Text color="cyan" bold>
@@ -202,7 +193,7 @@ function GameScreen({
       gameEngine.start(credentials);
     } else if (newPlayer) {
       gameEngine.start().then(() => {
-        gameEngine.registerNewPlayer(newPlayer.username, newPlayer.empire);
+        gameEngine.registerNewPlayer(newPlayer.username, newPlayer.empire, playStyle);
       });
     }
 
@@ -231,12 +222,12 @@ function Root() {
   const [credentials, setCredentials] = useState<Credentials | null>(null);
   const [newPlayer, setNewPlayer] = useState<{ username: string; empire: EmpireID } | null>(null);
 
-  const handleStart = (style: string, creds: Credentials | null, player: { username: string; empire: EmpireID } | null) => {
+  const handleStart = useCallback((style: string, creds: Credentials | null, player: { username: string; empire: EmpireID } | null) => {
     setPlayStyle(style);
     setCredentials(creds);
     setNewPlayer(player);
     setStarted(true);
-  };
+  }, []);
 
   if (!started) {
     return <StartupScreen onStart={handleStart} />;

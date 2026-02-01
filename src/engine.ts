@@ -150,8 +150,8 @@ export class GameEngine {
     await this.client.connect();
   }
 
-  async registerNewPlayer(username: string, empire: EmpireID): Promise<void> {
-    this.credentials = { username, token: '', empire };
+  async registerNewPlayer(username: string, empire: EmpireID, playStyle: string): Promise<void> {
+    this.credentials = { username, token: '', empire, playStyle };
     this.client.register(username, empire);
   }
 
