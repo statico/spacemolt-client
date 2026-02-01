@@ -9,7 +9,7 @@ import { render, Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import { App, type LogEntry } from './src/ui/App';
 import { GameEngine } from './src/engine';
-import { loadCredentials, loadPlayStyle, savePlayStyle, type Credentials, type Notebook } from './src/storage';
+import { loadCredentials, loadPlayStyle, savePlayStyle, saveCredentials, type Credentials, type Notebook } from './src/storage';
 import type { ClientState } from './src/client';
 import type { GameAction, EmpireID } from './src/types';
 import { type AdapterType, createAdapter } from './src/adapters';
@@ -70,10 +70,14 @@ function GameScreen({
 
   const handleStyleChange = useCallback((newStyle: string) => {
     setPlayStyle(newStyle);
-    savePlayStyle(newStyle);
+    void savePlayStyle(newStyle);
+    // Also update credentials if we have them
+    if (credentials) {
+      void saveCredentials({ ...credentials, playStyle: newStyle });
+    }
     engine?.setStrategy(newStyle);
     handleLog({ timestamp: new Date(), type: 'system', message: `Play style changed to: ${newStyle}` });
-  }, [engine, handleLog]);
+  }, [engine, handleLog, credentials]);
 
   useEffect(() => {
     const gameEngine = new GameEngine(adapterType, playStyle, {
