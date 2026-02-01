@@ -38,8 +38,7 @@ export class GeminiAdapter implements LLMAdapter {
       const content = result.response?.text?.() ?? '';
 
       return parseActionResponse(content || '{}');
-    } catch (error) {
-      console.error('Gemini error:', error);
+    } catch {
       return { command: 'status', reasoning: 'LLM error, checking status' };
     }
   }
@@ -52,8 +51,7 @@ export class GeminiAdapter implements LLMAdapter {
       const result = await model.generateContent(prompt);
       const text = result.response?.text?.() ?? '';
       return parseIdentityResponse(text);
-    } catch (error) {
-      console.error('Gemini identity error:', error);
+    } catch {
       return parseIdentityResponse('');
     }
   }

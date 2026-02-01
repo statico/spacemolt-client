@@ -1,5 +1,6 @@
 import React, { memo, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
+import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
 import type { ClientState } from '../client';
 import type { GameAction } from '../types';
@@ -21,26 +22,38 @@ interface AppProps {
   logs: LogEntry[];
   notebook: Notebook;
   onQuit: () => void;
+  onStyleChange?: (style: string) => void;
 }
 
 type TabView = 'log' | 'notebook';
 
+// Play style presets
+const STYLE_PRESETS = [
+  { key: '1', name: 'Balanced', desc: 'Trade, explore, and fight as needed' },
+  { key: '2', name: 'Trader', desc: 'Focus on trading and profit' },
+  { key: '3', name: 'Explorer', desc: 'Discover new systems and POIs' },
+  { key: '4', name: 'Pirate', desc: 'Attack other players for loot' },
+  { key: '5', name: 'Miner', desc: 'Mine asteroids for ore and sell' },
+  { key: '6', name: 'Pacifist', desc: 'Avoid combat at all costs' },
+  { key: 'c', name: 'Custom', desc: 'Enter your own play style' },
+];
+
 // Cypherpunk neon color palette
 const colors = {
-  accent: '#00ff9f',      // Neon green
-  accentAlt: '#00ffff',   // Cyan
-  warning: '#ff9f00',     // Orange
-  danger: '#ff0040',      // Red-magenta
-  muted: '#6e7681',       // Gray
-  bright: '#c5c8c6',      // Light gray
-  border: '#2d333b',      // Dark gray border
-  player: '#00ffff',      // Cyan for player name
-  credits: '#ffff00',     // Yellow for credits
-  system: '#bf00ff',      // Magenta for system messages
-  action: '#00ff9f',      // Green for actions
-  event: '#00bfff',       // Cyan for events
-  chat: '#ffff00',        // Yellow for chat
-  error: '#ff0040',       // Red for errors
+  accent: '#00ff9f',
+  accentAlt: '#00ffff',
+  warning: '#ff9f00',
+  danger: '#ff0040',
+  muted: '#6e7681',
+  bright: '#c5c8c6',
+  border: '#2d333b',
+  player: '#00ffff',
+  credits: '#ffff00',
+  system: '#bf00ff',
+  action: '#00ff9f',
+  event: '#00bfff',
+  chat: '#ffff00',
+  error: '#ff0040',
 };
 
 function progressBar(current: number, max: number, width: number = 12): string {
@@ -72,21 +85,27 @@ const Header = memo(function Header({
   const padRight = padTotal - padLeft;
   const titleLine = '╔' + '═'.repeat(padLeft) + title + '═'.repeat(padRight) + '╗';
 
+  // Show loading state in header bar while waiting for player data
+  const pilotName = player?.username || (connected ? 'Loading...' : '---');
+  const empireName = player?.empire?.toUpperCase() || '---';
+  const creditsVal = player?.credits?.toLocaleString() || '0';
+  const locName = state.system?.name || player?.current_system || '---';
+
   return (
     <Box flexDirection="column" width={width}>
       <Text color={colors.accent} bold>{titleLine}</Text>
       <Box>
         <Text color={colors.accent}>║ </Text>
-        <Text color={colors.muted}>PILOT: </Text>
-        <Text color={colors.player} bold>{player?.username || '???'}</Text>
-        <Text color={colors.muted}> | EMPIRE: </Text>
-        <Text color={colors.bright}>{player?.empire || '???'}</Text>
-        <Text color={colors.muted}> | CR$: </Text>
-        <Text color={colors.credits} bold>{player?.credits?.toLocaleString() || '0'}</Text>
-        <Text color={colors.muted}> | LOC: </Text>
-        <Text color={colors.bright}>{state.system?.name || player?.current_system || '???'}</Text>
-        <Text color={colors.muted}> | TICK: </Text>
-        <Text color={colors.bright}>{state.currentTick}</Text>
+        <Text color={colors.muted}>PILOT:</Text>
+        <Text color={colors.player} bold> {pilotName}</Text>
+        <Text color={colors.muted}> | EMPIRE:</Text>
+        <Text color={colors.bright}> {empireName}</Text>
+        <Text color={colors.muted}> | CR$:</Text>
+        <Text color={colors.credits} bold> {creditsVal}</Text>
+        <Text color={colors.muted}> | LOC:</Text>
+        <Text color={colors.bright}> {locName}</Text>
+        <Text color={colors.muted}> | TICK:</Text>
+        <Text color={colors.bright}> {state.currentTick}</Text>
         <Text color={colors.muted}> | </Text>
         <Text color={connected ? colors.accent : colors.danger}>{connStatus}</Text>
         <Text color={colors.muted}> ({aiLabel})</Text>
@@ -323,8 +342,84 @@ const InfoPanel = memo(function InfoPanel({
   );
 });
 
+const StyleSelector = memo(function StyleSelector({
+  onSelect,
+  onCancel,
+}: {
+  onSelect: (style: string) => void;
+  onCancel: () => void;
+}) {
+  const [customMode, setCustomMode] = useState(false);
+  const [customInput, setCustomInput] = useState('');
+
+  useInput((input, key) => {
+    if (customMode) {
+      if (key.escape) {
+        setCustomMode(false);
+        setCustomInput('');
+      }
+      return;
+    }
+
+    if (key.escape || input === 's') {
+      onCancel();
+      return;
+    }
+
+    const preset = STYLE_PRESETS.find(p => p.key === input);
+    if (preset) {
+      if (preset.key === 'c') {
+        setCustomMode(true);
+      } else {
+        onSelect(preset.name.toLowerCase());
+      }
+    }
+  });
+
+  const handleCustomSubmit = (value: string) => {
+    if (value.trim()) {
+      onSelect(value.trim());
+    }
+    setCustomMode(false);
+    setCustomInput('');
+  };
+
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="double"
+      borderColor={colors.accent}
+      paddingX={2}
+      paddingY={1}
+    >
+      <Text color={colors.accent} bold>═ SELECT PLAY STYLE ═</Text>
+      <Text color={colors.muted}>Press a key to select, [S] or [Esc] to cancel</Text>
+      <Box marginTop={1} flexDirection="column">
+        {STYLE_PRESETS.map(preset => (
+          <Box key={preset.key}>
+            <Text color={colors.warning}>[{preset.key.toUpperCase()}] </Text>
+            <Text color={colors.bright}>{preset.name}</Text>
+            <Text color={colors.muted}> - {preset.desc}</Text>
+          </Box>
+        ))}
+      </Box>
+      {customMode && (
+        <Box marginTop={1}>
+          <Text color={colors.accent}>{'>'} </Text>
+          <TextInput
+            value={customInput}
+            onChange={setCustomInput}
+            onSubmit={handleCustomSubmit}
+            placeholder="Enter your play style..."
+          />
+        </Box>
+      )}
+    </Box>
+  );
+});
+
 const Footer = memo(function Footer({ activeTab, width }: { activeTab: TabView; width: number }) {
-  const controls = '[Q]uit [1]Log [2]Notebook';
+  const controls = '[Q]uit [1]Log [2]Notebook [S]tyle';
   const innerWidth = width - 2;
   const padding = Math.max(0, innerWidth - controls.length - 4);
 
@@ -333,7 +428,8 @@ const Footer = memo(function Footer({ activeTab, width }: { activeTab: TabView; 
       <Text color={colors.accent}>╚═ </Text>
       <Text color={colors.muted}>[Q]uit </Text>
       <Text color={activeTab === 'log' ? colors.accent : colors.muted}>[1]Log </Text>
-      <Text color={activeTab === 'notebook' ? colors.accent : colors.muted}>[2]Notebook</Text>
+      <Text color={activeTab === 'notebook' ? colors.accent : colors.muted}>[2]Notebook </Text>
+      <Text color={colors.muted}>[S]tyle</Text>
       <Text color={colors.accent}> {'═'.repeat(padding)}╝</Text>
     </Box>
   );
@@ -349,41 +445,59 @@ export const App = memo(function App({
   logs,
   notebook,
   onQuit,
+  onStyleChange,
 }: AppProps) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const [activeTab, setActiveTab] = useState<TabView>('log');
+  const [showStyleSelector, setShowStyleSelector] = useState(false);
 
   useInput((input, key) => {
+    if (showStyleSelector) return;
+
     if (input === 'q' || (key.ctrl && input === 'c')) {
       onQuit();
       exit();
     }
     if (input === '1') setActiveTab('log');
     if (input === '2') setActiveTab('notebook');
+    if (input === 's') setShowStyleSelector(true);
   });
+
+  const handleStyleSelect = (style: string) => {
+    setShowStyleSelector(false);
+    onStyleChange?.(style);
+  };
 
   const terminalWidth = stdout?.columns ?? 80;
   const terminalHeight = stdout?.rows ?? 24;
   const availableHeight = terminalHeight - 4;
   const mainPanelHeight = Math.max(10, availableHeight);
 
+  if (showStyleSelector) {
+    return (
+      <Box flexDirection="column" width={terminalWidth} height={terminalHeight} justifyContent="center" alignItems="center">
+        <StyleSelector
+          onSelect={handleStyleSelect}
+          onCancel={() => setShowStyleSelector(false)}
+        />
+      </Box>
+    );
+  }
+
   return (
     <Box flexDirection="column" width={terminalWidth}>
       <Header state={state} adapterName={adapterName} modelName={modelName} width={terminalWidth} />
 
       <Box flexDirection="row" height={mainPanelHeight}>
-        {/* Left: Ship Status - fixed width */}
         <Box width={30}>
           <ShipStatusPanel state={state} thinking={thinking} action={currentAction} />
         </Box>
 
-        {/* Center: Log & Comms - flex to fill */}
         <Box flexGrow={1} flexDirection="column">
           <LogPanel logs={logs} height={mainPanelHeight} activeTab={activeTab} notebook={notebook} />
         </Box>
 
-        {/* Right: Info Panel - fixed width */}
         <Box width={28}>
           <InfoPanel state={state} strategy={strategy} />
         </Box>

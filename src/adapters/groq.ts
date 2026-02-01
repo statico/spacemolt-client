@@ -51,8 +51,7 @@ export class GroqAdapter implements LLMAdapter {
 
       const content = response.choices[0]?.message?.content || '';
       return parseActionResponse(content);
-    } catch (error) {
-      console.error('Groq error:', error);
+    } catch {
       return { command: 'status', reasoning: 'LLM error, checking status' };
     }
   }
@@ -70,8 +69,7 @@ export class GroqAdapter implements LLMAdapter {
 
       const content = response.choices[0]?.message?.content || '';
       return parseIdentityResponse(content);
-    } catch (error) {
-      console.error('Groq identity error:', error);
+    } catch {
       return parseIdentityResponse('');
     }
   }

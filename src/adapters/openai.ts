@@ -44,8 +44,7 @@ export class OpenAIAdapter implements LLMAdapter {
 
       const content = response.choices[0]?.message?.content || '';
       return parseActionResponse(content);
-    } catch (error) {
-      console.error('OpenAI error:', error);
+    } catch {
       return { command: 'status', reasoning: 'LLM error, checking status' };
     }
   }
@@ -63,8 +62,7 @@ export class OpenAIAdapter implements LLMAdapter {
 
       const content = response.choices[0]?.message?.content || '';
       return parseIdentityResponse(content);
-    } catch (error) {
-      console.error('OpenAI identity error:', error);
+    } catch {
       return parseIdentityResponse('');
     }
   }

@@ -9,7 +9,7 @@ import { render, Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import { App, type LogEntry } from './src/ui/App';
 import { GameEngine } from './src/engine';
-import { loadCredentials, loadPlayStyle, type Credentials, type Notebook } from './src/storage';
+import { loadCredentials, loadPlayStyle, savePlayStyle, type Credentials, type Notebook } from './src/storage';
 import type { ClientState } from './src/client';
 import type { GameAction, EmpireID } from './src/types';
 import { type AdapterType, createAdapter } from './src/adapters';
@@ -33,14 +33,15 @@ const DEFAULT_EMPIRE: EmpireID = 'outerrim';
 const DEFAULT_PLAY_STYLE = 'balanced';
 
 function GameScreen({
-  playStyle,
+  initialPlayStyle,
   credentials,
   newPlayer,
 }: {
-  playStyle: string;
+  initialPlayStyle: string;
   credentials: Credentials | null;
   newPlayer: { username: string; empire: EmpireID } | null;
 }) {
+  const [playStyle, setPlayStyle] = useState(initialPlayStyle);
   const [state, setState] = useState<ClientState>({
     connected: false,
     authenticated: false,
@@ -67,6 +68,13 @@ function GameScreen({
     engine?.stop();
   }, [engine]);
 
+  const handleStyleChange = useCallback((newStyle: string) => {
+    setPlayStyle(newStyle);
+    savePlayStyle(newStyle);
+    engine?.setStrategy(newStyle);
+    handleLog({ timestamp: new Date(), type: 'system', message: `Play style changed to: ${newStyle}` });
+  }, [engine, handleLog]);
+
   useEffect(() => {
     const gameEngine = new GameEngine(adapterType, playStyle, {
       onStateChange: setState,
@@ -88,7 +96,8 @@ function GameScreen({
     }
 
     return () => gameEngine.stop();
-  }, [playStyle, credentials, newPlayer, handleLog]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [credentials, newPlayer, handleLog]);
 
   return (
     <App
@@ -101,6 +110,7 @@ function GameScreen({
       logs={logs}
       notebook={notebook}
       onQuit={handleQuit}
+      onStyleChange={handleStyleChange}
     />
   );
 }
@@ -139,8 +149,8 @@ function Root() {
             setNewPlayer({ username: identity.username, empire: identity.empire });
             setReady(true);
           }
-        } catch (err) {
-          console.error('LLM identity failed:', err);
+        } catch {
+          // LLM failed, use random identity
           if (!cancelled) {
             setNewPlayer({
               username: `Pilot${Math.floor(Math.random() * 90000) + 10000}`,
@@ -166,7 +176,7 @@ function Root() {
     );
   }
 
-  return <GameScreen playStyle={playStyle} credentials={credentials} newPlayer={newPlayer} />;
+  return <GameScreen initialPlayStyle={playStyle} credentials={credentials} newPlayer={newPlayer} />;
 }
 
 console.clear();

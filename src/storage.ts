@@ -39,7 +39,7 @@ export async function loadCredentials(): Promise<Credentials | null> {
       } as Credentials;
     }
   } catch (err) {
-    console.error('[SpaceMolt] Failed to load credentials:', err);
+    // Silently fail - credentials may not exist yet
   }
   return null;
 }

@@ -56,8 +56,7 @@ export class OllamaAdapter implements LLMAdapter {
       const content = data.message?.content || '';
 
       return parseActionResponse(content);
-    } catch (error) {
-      console.error('Ollama error:', error);
+    } catch {
       return { command: 'status', reasoning: 'LLM error, checking status' };
     } finally {
       clearTimeout(timeoutId);
@@ -85,8 +84,7 @@ export class OllamaAdapter implements LLMAdapter {
 
       const data = await response.json() as { message?: { content?: string } };
       return parseIdentityResponse(data.message?.content || '');
-    } catch (error) {
-      console.error('Ollama identity error:', error);
+    } catch {
       return parseIdentityResponse('');
     }
   }

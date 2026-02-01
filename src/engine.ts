@@ -54,6 +54,10 @@ export class GameEngine {
     return this.client.state;
   }
 
+  setStrategy(newStrategy: string): void {
+    this.strategy = newStrategy;
+  }
+
   private log(type: LogEntry['type'], message: string) {
     const entry: LogEntry = { timestamp: new Date(), type, message };
     this.callbacks.onLog(entry);

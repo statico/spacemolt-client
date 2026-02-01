@@ -43,8 +43,7 @@ export class ClaudeAdapter implements LLMAdapter {
       }
 
       return parseActionResponse(content.text);
-    } catch (error) {
-      console.error('Claude error:', error);
+    } catch {
       return { command: 'status', reasoning: 'LLM error, checking status' };
     }
   }
@@ -65,8 +64,7 @@ export class ClaudeAdapter implements LLMAdapter {
       }
 
       return parseIdentityResponse(content.text);
-    } catch (error) {
-      console.error('Claude identity error:', error);
+    } catch {
       return parseIdentityResponse('');
     }
   }
