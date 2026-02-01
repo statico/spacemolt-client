@@ -319,10 +319,11 @@ export class SpaceMoltClient {
 
   private handleStateUpdate(payload: StateUpdatePayload): void {
     this.state.currentTick = payload.tick;
-    this.state.player = payload.player;
-    this.state.ship = payload.ship;
-    this.state.nearby = payload.nearby;
-    this.state.inCombat = payload.in_combat;
+    // Only update if payload contains data (server may send partial updates)
+    if (payload.player) this.state.player = payload.player;
+    if (payload.ship) this.state.ship = payload.ship;
+    if (payload.nearby) this.state.nearby = payload.nearby;
+    if (payload.in_combat !== undefined) this.state.inCombat = payload.in_combat;
     this.emit('state_update', payload);
   }
 

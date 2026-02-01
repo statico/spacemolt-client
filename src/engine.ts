@@ -143,8 +143,13 @@ export class GameEngine {
       }
       this.callbacks.onStateChange(this.client.state);
 
-      if (data.in_combat) {
+      if (data.in_combat && data.ship) {
         this.log('event', `IN COMBAT! Hull: ${data.ship.hull}/${data.ship.max_hull}`);
+      }
+
+      // If authenticated but still no player data, request full status
+      if (this.client.state.authenticated && !this.client.state.player) {
+        this.client.getStatus();
       }
     });
 
@@ -217,6 +222,14 @@ export class GameEngine {
     this.client.on('trade_offer_received', (data: Record<string, unknown>) => {
       const from = data.from_player || data.sender || 'Unknown';
       this.log('event', `Trade offer received from ${from}`);
+    });
+
+    // On tick, if we still don't have player data, fetch it
+    this.client.on('tick', () => {
+      if (this.client.state.authenticated && !this.client.state.player) {
+        this.client.getStatus();
+      }
+      this.callbacks.onStateChange(this.client.state);
     });
 
     // Catch-all for any other server messages
