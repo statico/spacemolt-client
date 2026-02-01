@@ -187,6 +187,12 @@ export class GameEngine {
       );
 
       this.callbacks.onThinking(false);
+
+      // Re-check auth after async LLM call - connection state may have changed
+      if (!this.running || !this.client.state.authenticated) {
+        return;
+      }
+
       this.callbacks.onAction(action);
 
       // Execute the action

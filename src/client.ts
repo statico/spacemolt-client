@@ -102,6 +102,8 @@ export class SpaceMoltClient {
         this.ws.onclose = () => {
           this.state.connected = false;
           this.state.authenticated = false;
+          // Clear any queued messages to avoid sending stale commands after reconnect
+          this.messageQueue = [];
           this.log('Disconnected from server');
           this.emit('disconnected', {});
 
