@@ -68,28 +68,24 @@ export class GameEngine {
       }
       this.callbacks.onStateChange(this.client.state);
 
-      // Auto-login or re-register if we have credentials
-      if (this.credentials) {
-        if (this.credentials.token) {
-          this.log('system', `Auto-logging in as ${this.credentials.username}...`);
-          this.client.login(this.credentials.username, this.credentials.token);
-        } else {
-          this.log('system', `Re-registering as ${this.credentials.username}...`);
-          this.client.register(this.credentials.username, this.credentials.empire as EmpireID);
-        }
-        // Start AI loop so we recover after reconnect even if server sends
-        // state_update before logged_in; runAITick no-ops until authenticated
+      // Auth only after welcome (reference client does the same)
+      if (this.credentials?.token?.trim()) {
+        this.log('system', `Logging in as ${this.credentials.username}...`);
+        this.client.login(this.credentials.username, this.credentials.token);
         this.startAILoop();
+      } else if (this.credentials) {
+        this.log('system', `Registering as ${this.credentials.username}...`);
+        this.client.register(this.credentials.username, this.credentials.empire as EmpireID);
       }
     });
 
-    this.client.on<RegisteredPayload>('registered', async (data) => {
+    this.client.on<RegisteredPayload>('registered', (data) => {
       this.log('system', `Registered! Token: ${data.token.slice(0, 8)}...`);
       if (this.credentials) {
         this.credentials.token = data.token;
-        await saveCredentials(this.credentials);
-        // Now login with the new token
+        // Login immediately so server gets it; save credentials after
         this.client.login(this.credentials.username, data.token);
+        void saveCredentials(this.credentials);
       }
     });
 
@@ -132,6 +128,12 @@ export class GameEngine {
     });
 
     this.client.on<StateUpdatePayload>('state_update', (data) => {
+      // If we have full state but never got logged_in (e.g. registered response failed to parse), treat as authenticated
+      if (data.player && data.ship && !this.client.state.authenticated) {
+        this.client.state.authenticated = true;
+        this.log('system', `Logged in as ${data.player.username} (from state)`);
+        this.startAILoop();
+      }
       this.callbacks.onStateChange(this.client.state);
 
       if (data.in_combat) {
@@ -171,21 +173,25 @@ export class GameEngine {
     });
   }
 
-  async start(existingCredentials?: Credentials): Promise<void> {
-    // Load saved credentials or use provided ones
-    this.credentials = existingCredentials || (await loadCredentials());
+  /** Start the engine. Pass credentials to use them; pass nothing to load from disk; pass null + newPlayer when registering. */
+  async start(existingCredentials?: Credentials | null, newPlayer?: { username: string; empire: EmpireID } | null): Promise<void> {
+    if (existingCredentials !== undefined) {
+      this.credentials = existingCredentials;
+    } else {
+      this.credentials = await loadCredentials();
+    }
+    if (newPlayer) {
+      this.credentials = {
+        username: newPlayer.username,
+        token: '',
+        empire: newPlayer.empire,
+        playStyle: this.strategy,
+      };
+      await saveCredentials(this.credentials);
+    }
     this.notes = await loadNotes();
-
     this.running = true;
-
-    // Connect to the server
     await this.client.connect();
-  }
-
-  async registerNewPlayer(username: string, empire: EmpireID, playStyle: string): Promise<void> {
-    this.credentials = { username, token: '', empire, playStyle };
-    await saveCredentials(this.credentials);
-    this.client.register(username, empire);
   }
 
   private startAILoop(): void {
@@ -198,8 +204,8 @@ export class GameEngine {
     const tickRate = this.client.state.tickRate || 10;
     this.tickInterval = setInterval(() => this.runAITick(), tickRate * 1000);
 
-    // Run first tick after a short delay to ensure state is settled
-    setTimeout(() => this.runAITick(), 500);
+    // Run first tick immediately so we don't sit at "Waiting..." after login
+    void this.runAITick();
   }
 
   private stopAILoop(): void {
@@ -219,12 +225,18 @@ export class GameEngine {
     try {
       this.callbacks.onThinking(true);
 
-      const action = await this.adapter.generateAction(
-        this.client.state,
-        this.strategy,
-        this.recentEvents,
-        this.notes
-      );
+      let action: GameAction;
+      try {
+        action = await this.adapter.generateAction(
+          this.client.state,
+          this.strategy,
+          this.recentEvents,
+          this.notes
+        );
+      } catch (err) {
+        this.log('error', `LLM failed: ${err}`);
+        action = { command: 'status', reasoning: 'LLM error, checking status' };
+      }
 
       this.callbacks.onThinking(false);
 
@@ -251,6 +263,12 @@ export class GameEngine {
     } catch (error) {
       this.callbacks.onThinking(false);
       this.log('error', `AI error: ${error}`);
+      // Still run a safe fallback so we're not stuck
+      if (this.running && this.client.state.authenticated) {
+        const fallback: GameAction = { command: 'status', reasoning: 'Recovering from error' };
+        this.callbacks.onAction(fallback);
+        this.client.executeCommand('status', []);
+      }
     }
   }
 

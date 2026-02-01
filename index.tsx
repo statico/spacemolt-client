@@ -1,24 +1,21 @@
 #!/usr/bin/env bun
 /**
  * SpaceMolt AI Client
- * An autonomous AI-powered client for the SpaceMolt MMO game
+ * No credentials → register. Has credentials → login. Then play forever.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
-import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
 import { App, type LogEntry } from './src/ui/App';
 import { GameEngine } from './src/engine';
-import { loadCredentials, saveCredentials, savePlayStyle, loadPlayStyle, type Credentials } from './src/storage';
+import { loadCredentials, loadPlayStyle, type Credentials } from './src/storage';
 import type { ClientState } from './src/client';
 import type { GameAction, EmpireID } from './src/types';
 import { type AdapterType, createAdapter } from './src/adapters';
 
-// Parse CLI args
 const args = process.argv.slice(2);
 let adapterType: AdapterType = 'ollama';
-
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--adapter' || args[i] === '-a') {
     const type = args[i + 1];
@@ -28,159 +25,13 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-// Startup screen - only asks for play style on first run
-function StartupScreen({ onStart }: { onStart: (playStyle: string, credentials: Credentials | null, newPlayer: { username: string; empire: EmpireID } | null) => void }) {
-  const [phase, setPhase] = useState<'loading' | 'playstyle' | 'generating'>('loading');
-  const [existingCredentials, setExistingCredentials] = useState<Credentials | null>(null);
-  const [playStyle, setPlayStyle] = useState('');
-  const { exit } = useApp();
+const DEFAULT_EMPIRE: EmpireID = 'outerrim';
+const DEFAULT_PLAY_STYLE = 'balanced';
 
-  useEffect(() => {
-    loadCredentials().then(async (creds) => {
-      // If we have creds but playStyle is missing, try loading from dedicated file (e.g. saved before registration completed)
-      if (creds && !creds.playStyle) {
-        const savedStyle = await loadPlayStyle();
-        if (savedStyle) {
-          creds = { ...creds, playStyle: savedStyle };
-          await saveCredentials(creds);
-        }
-      }
-      if (creds && creds.playStyle) {
-        // Existing player with saved play style - start immediately
-        onStart(creds.playStyle, creds, null);
-      } else if (creds && creds.token) {
-        // Existing player but missing playStyle - ask for it once
-        setExistingCredentials(creds);
-        setPhase('playstyle');
-      } else {
-        // New player - ask for play style (optionally pre-fill from last time)
-        const savedStyle = await loadPlayStyle();
-        if (savedStyle) setPlayStyle(savedStyle);
-        setPhase('playstyle');
-      }
-    });
-  }, [onStart]);
-
-  useInput((input, key) => {
-    if (key.ctrl && input === 'c') {
-      exit();
-    }
-  });
-
-  const handlePlayStyleSubmit = async () => {
-    if (!playStyle.trim()) return;
-
-    // Save play style immediately so we never forget it (before any async work)
-    await savePlayStyle(playStyle.trim());
-
-    if (existingCredentials) {
-      // Update existing credentials with playStyle
-      const updatedCreds: Credentials = { ...existingCredentials, playStyle: playStyle.trim() };
-      await saveCredentials(updatedCreds);
-      onStart(playStyle.trim(), updatedCreds, null);
-    } else {
-      // New player - generate username and empire with LLM
-      setPhase('generating');
-
-      try {
-        const adapter = createAdapter(adapterType);
-        const identity = await adapter.generateIdentity(playStyle.trim());
-        onStart(playStyle.trim(), null, { username: identity.username, empire: identity.empire });
-      } catch (error) {
-        console.error('Failed to generate identity:', error);
-        // Fallback
-        const fallbackName = `Pilot${Math.floor(Math.random() * 10000)}`;
-        onStart(playStyle.trim(), null, { username: fallbackName, empire: 'outerrim' });
-      }
-    }
-  };
-
-  if (phase === 'loading') {
-    return (
-      <Box flexDirection="column" padding={2}>
-        <Text color="cyan">
-          <Spinner type="dots" /> Loading...
-        </Text>
-      </Box>
-    );
-  }
-
-  if (phase === 'generating') {
-    return (
-      <Box flexDirection="column" padding={2}>
-        <Box marginBottom={1}>
-          <Text color="magenta" bold>
-            {'>>>'} SPACEMOLT AI CLIENT {'<<<'}
-          </Text>
-        </Box>
-        <Text color="cyan">{'═'.repeat(50)}</Text>
-        <Box marginTop={2}>
-          <Text color="yellow">
-            <Spinner type="dots" /> Generating pilot identity...
-          </Text>
-        </Box>
-      </Box>
-    );
-  }
-
-  return (
-    <Box flexDirection="column" padding={2}>
-      <Box marginBottom={1}>
-        <Text color="magenta" bold>
-          {'>>>'} SPACEMOLT AI CLIENT {'<<<'}
-        </Text>
-      </Box>
-      <Text color="cyan">{'═'.repeat(50)}</Text>
-
-      <Box marginTop={1} marginBottom={1}>
-        <Text color="yellow">LLM: </Text>
-        <Text color="green" bold>{adapterType.toUpperCase()}</Text>
-      </Box>
-
-      {existingCredentials ? (
-        <Box marginBottom={1}>
-          <Text color="green">
-            Welcome back, <Text bold>{existingCredentials.username}</Text>! One-time setup:
-          </Text>
-        </Box>
-      ) : (
-        <Box marginBottom={1}>
-          <Text color="cyan">New pilot - identity will be generated based on your play style</Text>
-        </Box>
-      )}
-
-      <Box flexDirection="column">
-        <Text color="cyan" bold>
-          Describe your play style:
-        </Text>
-        <Box marginTop={1}>
-          <Text color="gray">
-            Examples: aggressive, explorer, social, trader, pirate, miner
-          </Text>
-        </Box>
-        <Box marginTop={1}>
-          <Text color="yellow">{'>'} </Text>
-          <TextInput
-            value={playStyle}
-            onChange={setPlayStyle}
-            onSubmit={handlePlayStyleSubmit}
-            placeholder="Enter play style..."
-          />
-        </Box>
-      </Box>
-
-      <Box marginTop={2}>
-        <Text color="gray">[Ctrl+C to quit]</Text>
-      </Box>
-    </Box>
-  );
-}
-
-// Main game screen
 function GameScreen({
   playStyle,
   credentials,
-  newPlayer
+  newPlayer,
 }: {
   playStyle: string;
   credentials: Credentials | null;
@@ -218,28 +69,26 @@ function GameScreen({
       onAction: setCurrentAction,
       onThinking: setThinking,
     });
-
     setEngine(gameEngine);
 
-    // Start the engine
     if (credentials) {
-      gameEngine.start(credentials);
+      gameEngine.start(credentials).catch((err) => {
+        handleLog({ timestamp: new Date(), type: 'error', message: `Connection failed: ${err?.message ?? err}` });
+      });
     } else if (newPlayer) {
-      gameEngine.start().then(() => {
-        gameEngine.registerNewPlayer(newPlayer.username, newPlayer.empire, playStyle);
+      gameEngine.start(null, newPlayer).catch((err) => {
+        handleLog({ timestamp: new Date(), type: 'error', message: `Connection failed: ${err?.message ?? err}` });
       });
     }
 
-    return () => {
-      gameEngine.stop();
-    };
+    return () => gameEngine.stop();
   }, [playStyle, credentials, newPlayer, handleLog]);
 
   return (
     <App
       state={state}
       strategy={playStyle}
-      adapterName={engine?.adapterName || adapterType}
+      adapterName={engine?.adapterName ?? adapterType}
       currentAction={currentAction}
       thinking={thinking}
       logs={logs}
@@ -248,27 +97,69 @@ function GameScreen({
   );
 }
 
-// Root component
 function Root() {
-  const [started, setStarted] = useState(false);
-  const [playStyle, setPlayStyle] = useState('');
+  const [ready, setReady] = useState(false);
+  const [playStyle, setPlayStyle] = useState(DEFAULT_PLAY_STYLE);
   const [credentials, setCredentials] = useState<Credentials | null>(null);
   const [newPlayer, setNewPlayer] = useState<{ username: string; empire: EmpireID } | null>(null);
+  const { exit } = useApp();
 
-  const handleStart = useCallback((style: string, creds: Credentials | null, player: { username: string; empire: EmpireID } | null) => {
-    setPlayStyle(style);
-    setCredentials(creds);
-    setNewPlayer(player);
-    setStarted(true);
+  useInput((input, key) => {
+    if (key.ctrl && input === 'c') exit();
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    loadCredentials().then(async (creds) => {
+      const hasValidCreds = creds && creds.username && creds.token?.trim();
+      if (hasValidCreds) {
+        const style = creds.playStyle?.trim() || (await loadPlayStyle()) || DEFAULT_PLAY_STYLE;
+        if (!cancelled) {
+          setPlayStyle(style);
+          setCredentials(creds);
+          setNewPlayer(null);
+          setReady(true);
+        }
+      } else {
+        const style = (await loadPlayStyle()) || DEFAULT_PLAY_STYLE;
+        setPlayStyle(style);
+        setCredentials(null);
+        try {
+          const adapter = createAdapter(adapterType);
+          const identity = await adapter.generateIdentity(style);
+          if (!cancelled) {
+            setNewPlayer({ username: identity.username, empire: identity.empire });
+            setReady(true);
+          }
+        } catch (err) {
+          console.error('LLM identity failed:', err);
+          if (!cancelled) {
+            setNewPlayer({
+              username: `Pilot${Math.floor(Math.random() * 90000) + 10000}`,
+              empire: DEFAULT_EMPIRE,
+            });
+            setReady(true);
+          }
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (!started) {
-    return <StartupScreen onStart={handleStart} />;
+  if (!ready) {
+    return (
+      <Box flexDirection="column" padding={2}>
+        <Text color="cyan">
+          <Spinner type="dots" /> {credentials === null && !newPlayer ? 'Generating pilot...' : 'Loading...'}
+        </Text>
+      </Box>
+    );
   }
 
   return <GameScreen playStyle={playStyle} credentials={credentials} newPlayer={newPlayer} />;
 }
 
-// Start the app
 console.clear();
 render(<Root />, { incrementalRendering: true });

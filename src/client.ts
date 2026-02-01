@@ -86,7 +86,34 @@ export class SpaceMoltClient {
   }
 
   connect(): Promise<void> {
+    const timeoutMs = 15_000;
     return new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (err?: Error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (err) {
+          this.ws = null;
+          reject(err);
+        } else {
+          resolve();
+        }
+      };
+
+      const timer = setTimeout(() => {
+        const ws = this.ws;
+        if (ws) {
+          try {
+            ws.close();
+          } catch {
+            // ignore
+          }
+          this.ws = null;
+        }
+        finish(new Error(`Connection timeout after ${timeoutMs / 1000}s. Is the server reachable?`));
+      }, timeoutMs);
+
       try {
         this.ws = new WebSocket(this.options.url);
 
@@ -96,13 +123,12 @@ export class SpaceMoltClient {
           this.log('Connected to server');
           this.emit('connected', { reconnected: this.savedCredentials !== null });
           this.flushMessageQueue();
-          resolve();
+          finish();
         };
 
         this.ws.onclose = () => {
           this.state.connected = false;
           this.state.authenticated = false;
-          // Clear any queued messages to avoid sending stale commands after reconnect
           this.messageQueue = [];
           this.log('Disconnected from server');
           this.emit('disconnected', {});
@@ -115,14 +141,14 @@ export class SpaceMoltClient {
         this.ws.onerror = (error) => {
           this.log('WebSocket error:', error);
           this.emit('ws_error', { error });
-          reject(error);
+          finish(error instanceof Error ? error : new Error(String(error)));
         };
 
         this.ws.onmessage = (event) => {
           this.handleMessage(event.data);
         };
       } catch (error) {
-        reject(error);
+        finish(error instanceof Error ? error : new Error(String(error)));
       }
     });
   }
@@ -168,44 +194,86 @@ export class SpaceMoltClient {
   }
 
   private handleMessage(data: string): void {
-    try {
-      const msg = JSON.parse(data) as Message;
-      this.log('Received:', msg.type, msg.payload);
+    const trimmed = data.trim();
+    if (!trimmed) return;
 
-      switch (msg.type) {
-        case 'welcome':
-          this.handleWelcome(msg.payload as WelcomePayload);
-          break;
-        case 'registered':
-          this.handleRegistered(msg.payload as RegisteredPayload);
-          break;
-        case 'logged_in':
-          this.handleLoggedIn(msg.payload as LoggedInPayload);
-          break;
-        case 'error':
-          this.handleError(msg.payload as ErrorPayload);
-          break;
-        case 'ok':
-          this.emit('ok', msg.payload);
-          break;
-        case 'state_update':
-          this.handleStateUpdate(msg.payload as StateUpdatePayload);
-          break;
-        case 'scan_result':
-          this.emit('scan_result', msg.payload as ScanResultPayload);
-          break;
-        case 'chat_message':
-          this.emit('chat_message', msg.payload as ChatMessage);
-          break;
-        case 'version_info':
-          this.emit('version_info', msg.payload);
-          break;
-        default:
-          this.emit(msg.type, msg.payload);
+    let msg: Message | null = null;
+    let rest = '';
+
+    try {
+      msg = JSON.parse(trimmed) as Message;
+    } catch {
+      // Maybe multiple JSON objects concatenated (no newline): parse first object only
+      if (trimmed.startsWith('{')) {
+        let depth = 0;
+        let end = -1;
+        for (let i = 0; i < trimmed.length; i++) {
+          if (trimmed[i] === '{') depth++;
+          else if (trimmed[i] === '}') {
+            depth--;
+            if (depth === 0) {
+              end = i + 1;
+              break;
+            }
+          }
+        }
+        if (end > 0) {
+          try {
+            msg = JSON.parse(trimmed.slice(0, end)) as Message;
+            rest = trimmed.slice(end).trim();
+          } catch {
+            // fall through
+          }
+        }
       }
-    } catch (error) {
-      this.log('Error parsing message:', error);
+      if (msg == null) {
+        // Server may send a raw token for 'registered' (non-JSON)
+        if (!trimmed.startsWith('[')) {
+          this.log('Received: (raw token)');
+          this.handleRegistered({ token: trimmed, player_id: '' });
+          return;
+        }
+        this.log('Error parsing message:', trimmed.slice(0, 100));
+        return;
+      }
     }
+
+    const m = msg!;
+    this.log('Received:', m.type, m.payload);
+
+    switch (m.type) {
+      case 'welcome':
+        this.handleWelcome(m.payload as WelcomePayload);
+        break;
+      case 'registered':
+        this.handleRegistered(m.payload as RegisteredPayload);
+        break;
+      case 'logged_in':
+        this.handleLoggedIn(m.payload as LoggedInPayload);
+        break;
+      case 'error':
+        this.handleError(m.payload as ErrorPayload);
+        break;
+      case 'ok':
+        this.emit('ok', m.payload);
+        break;
+      case 'state_update':
+        this.handleStateUpdate(m.payload as StateUpdatePayload);
+        break;
+      case 'scan_result':
+        this.emit('scan_result', m.payload as ScanResultPayload);
+        break;
+      case 'chat_message':
+        this.emit('chat_message', m.payload as ChatMessage);
+        break;
+      case 'version_info':
+        this.emit('version_info', m.payload);
+        break;
+      default:
+        this.emit(m.type, m.payload);
+    }
+
+    if (rest) this.handleMessage(rest);
   }
 
   private handleWelcome(payload: WelcomePayload): void {

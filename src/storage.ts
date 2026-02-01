@@ -44,6 +44,17 @@ export async function loadCredentials(): Promise<Credentials | null> {
 }
 
 export async function saveCredentials(credentials: Credentials): Promise<void> {
+  // Never overwrite an existing token with empty — e.g. registerNewPlayer must not wipe a valid token
+  if (!credentials.token.trim()) {
+    try {
+      const existing = await loadCredentials();
+      if (existing?.token?.trim()) {
+        credentials = { ...credentials, token: existing.token };
+      }
+    } catch {
+      // ignore
+    }
+  }
   await Bun.write(CREDENTIALS_FILE, JSON.stringify(credentials, null, 2));
 }
 

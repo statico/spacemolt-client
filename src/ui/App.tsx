@@ -40,13 +40,16 @@ function Header({ version, tick }: { version?: string; tick: number }) {
 }
 
 function StatusPanel({ state, strategy, adapterName }: { state: ClientState; strategy: string; adapterName: string }) {
-  const { player, ship, system, poi, inCombat } = state;
+  const { connected, player, ship, system, poi, inCombat } = state;
 
   if (!player || !ship) {
+    const status = !connected
+      ? 'Connecting...'
+      : 'Authenticating...';
     return (
       <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1}>
         <Text color="yellow">
-          <Spinner type="dots" /> Connecting...
+          <Spinner type="dots" /> {status}
         </Text>
       </Box>
     );
