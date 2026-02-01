@@ -218,6 +218,26 @@ export class GameEngine {
       const from = data.from_player || data.sender || 'Unknown';
       this.log('event', `Trade offer received from ${from}`);
     });
+
+    // Catch-all for any other server messages
+    const handledTypes = new Set([
+      'welcome', 'registered', 'logged_in', 'error', 'ok', 'state_update',
+      'chat_message', 'scan_result', 'combat_update', 'player_died',
+      'mining_yield', 'trade_offer_received', 'tick', 'version_info',
+      'reconnecting', 'connected', 'disconnected', 'ws_error'
+    ]);
+
+    // Listen to all message types via a wildcard-style approach
+    const originalEmit = (this.client as unknown as { emit: (event: string, data: unknown) => void }).emit;
+    if (originalEmit) {
+      (this.client as unknown as { emit: (event: string, data: unknown) => void }).emit = (event: string, data: unknown) => {
+        if (!handledTypes.has(event)) {
+          const preview = JSON.stringify(data).slice(0, 100);
+          this.log('event', `[${event}] ${preview}${JSON.stringify(data).length > 100 ? '...' : ''}`);
+        }
+        return originalEmit.call(this.client, event, data);
+      };
+    }
   }
 
   /** Start the engine. Pass credentials to use them; pass nothing to load from disk; pass null + newPlayer when registering. */
