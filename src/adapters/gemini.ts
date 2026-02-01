@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { GameAction } from '../types';
 import type { ClientState } from '../client';
 import { type LLMAdapter, type PlayerIdentity, buildSystemPrompt, buildStatePrompt, parseActionResponse, buildIdentityPrompt, parseIdentityResponse } from './base';
+import { logError } from '../logger';
 
 export interface GeminiConfig {
   apiKey?: string;
@@ -38,7 +39,8 @@ export class GeminiAdapter implements LLMAdapter {
       const content = result.response?.text?.() ?? '';
 
       return parseActionResponse(content || '{}');
-    } catch {
+    } catch (err) {
+      void logError('gemini', err);
       return { command: 'status', reasoning: 'LLM error, checking status' };
     }
   }
@@ -51,7 +53,8 @@ export class GeminiAdapter implements LLMAdapter {
       const result = await model.generateContent(prompt);
       const text = result.response?.text?.() ?? '';
       return parseIdentityResponse(text);
-    } catch {
+    } catch (err) {
+      void logError('gemini', err);
       return parseIdentityResponse('');
     }
   }

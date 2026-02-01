@@ -1,6 +1,7 @@
 import type { GameAction } from '../types';
 import type { ClientState } from '../client';
 import { type LLMAdapter, type PlayerIdentity, buildSystemPrompt, buildStatePrompt, parseActionResponse, buildIdentityPrompt, parseIdentityResponse } from './base';
+import { logError } from '../logger';
 
 export interface OllamaConfig {
   baseUrl?: string;
@@ -56,7 +57,8 @@ export class OllamaAdapter implements LLMAdapter {
       const content = data.message?.content || '';
 
       return parseActionResponse(content);
-    } catch {
+    } catch (err) {
+      void logError('ollama', err);
       return { command: 'status', reasoning: 'LLM error, checking status' };
     } finally {
       clearTimeout(timeoutId);
@@ -84,7 +86,8 @@ export class OllamaAdapter implements LLMAdapter {
 
       const data = await response.json() as { message?: { content?: string } };
       return parseIdentityResponse(data.message?.content || '');
-    } catch {
+    } catch (err) {
+      void logError('ollama', err);
       return parseIdentityResponse('');
     }
   }

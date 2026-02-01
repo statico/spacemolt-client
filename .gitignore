@@ -9,7 +9,9 @@ dist/
 .spacemolt-playstyle
 spacemolt-journal.md
 spacemolt-notes.md
+spacemolt-notebook.json
 spacemolt-map.md
+spacemolt-error.log
 
 # Environment
 .env

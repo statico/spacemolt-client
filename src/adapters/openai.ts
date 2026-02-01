@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import type { GameAction } from '../types';
 import type { ClientState } from '../client';
 import { type LLMAdapter, type PlayerIdentity, buildSystemPrompt, buildStatePrompt, parseActionResponse, buildIdentityPrompt, parseIdentityResponse } from './base';
+import { logError } from '../logger';
 
 export interface OpenAIConfig {
   apiKey?: string;
@@ -44,7 +45,8 @@ export class OpenAIAdapter implements LLMAdapter {
 
       const content = response.choices[0]?.message?.content || '';
       return parseActionResponse(content);
-    } catch {
+    } catch (err) {
+      void logError('openai', err);
       return { command: 'status', reasoning: 'LLM error, checking status' };
     }
   }
@@ -62,7 +64,8 @@ export class OpenAIAdapter implements LLMAdapter {
 
       const content = response.choices[0]?.message?.content || '';
       return parseIdentityResponse(content);
-    } catch {
+    } catch (err) {
+      void logError('openai', err);
       return parseIdentityResponse('');
     }
   }

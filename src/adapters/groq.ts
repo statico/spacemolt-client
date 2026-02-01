@@ -10,6 +10,7 @@ import {
   buildIdentityPrompt,
   parseIdentityResponse,
 } from './base';
+import { logError } from '../logger';
 
 export interface GroqConfig {
   apiKey?: string;
@@ -51,7 +52,8 @@ export class GroqAdapter implements LLMAdapter {
 
       const content = response.choices[0]?.message?.content || '';
       return parseActionResponse(content);
-    } catch {
+    } catch (err) {
+      void logError('groq', err);
       return { command: 'status', reasoning: 'LLM error, checking status' };
     }
   }
@@ -69,7 +71,8 @@ export class GroqAdapter implements LLMAdapter {
 
       const content = response.choices[0]?.message?.content || '';
       return parseIdentityResponse(content);
-    } catch {
+    } catch (err) {
+      void logError('groq', err);
       return parseIdentityResponse('');
     }
   }

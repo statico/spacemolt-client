@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { GameAction } from '../types';
 import type { ClientState } from '../client';
 import { type LLMAdapter, type PlayerIdentity, buildSystemPrompt, buildStatePrompt, parseActionResponse, buildIdentityPrompt, parseIdentityResponse } from './base';
+import { logError } from '../logger';
 
 export interface ClaudeConfig {
   apiKey?: string;
@@ -43,7 +44,8 @@ export class ClaudeAdapter implements LLMAdapter {
       }
 
       return parseActionResponse(content.text);
-    } catch {
+    } catch (err) {
+      void logError('claude', err);
       return { command: 'status', reasoning: 'LLM error, checking status' };
     }
   }
@@ -64,7 +66,8 @@ export class ClaudeAdapter implements LLMAdapter {
       }
 
       return parseIdentityResponse(content.text);
-    } catch {
+    } catch (err) {
+      void logError('claude', err);
       return parseIdentityResponse('');
     }
   }
