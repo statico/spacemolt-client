@@ -76,8 +76,8 @@ const StatusPanel = memo(function StatusPanel({
       {inCombat && <Text color="red" bold>!!! COMBAT !!!</Text>}
 
       <Box marginTop={1} flexDirection="column">
-        <Text color="cyan">LOC: <Text color="white">{system?.name || player.current_system}</Text></Text>
-        <Text color="gray">    {poi?.name || player.current_poi}</Text>
+        <Text color="cyan" wrap="truncate-end">LOC: <Text color="white">{system?.name || player.current_system}</Text></Text>
+        <Text color="gray" wrap="truncate-end">    {poi?.name || player.current_poi}</Text>
         {player.docked_at_base && <Text color="blue">[DOCKED]</Text>}
       </Box>
 
@@ -130,14 +130,14 @@ const NearbyPanel = memo(function NearbyPanel({ nearby, maxVisible }: { nearby: 
       ) : (
         <>
           {players.slice(0, maxVisible).map((p, i) => (
-            <Box key={i}>
+            <Text key={i} wrap="truncate-end">
               <Text color={p.in_combat ? 'red' : 'white'}>
                 {p.anonymous ? '[ANON]' : p.username || '???'}
               </Text>
               {p.clan_tag && <Text color="yellow"> [{p.clan_tag}]</Text>}
               {p.faction_tag && <Text color="blue"> &lt;{p.faction_tag}&gt;</Text>}
               {p.in_combat && <Text color="red"> *</Text>}
-            </Box>
+            </Text>
           ))}
           {players.length > maxVisible && (
             <Text color="gray">+{players.length - maxVisible} more</Text>
@@ -160,13 +160,11 @@ const ActionPanel = memo(function ActionPanel({ action, thinking }: { action: Ga
         </Text>
       ) : action ? (
         <Box flexDirection="column">
-          <Text color="green">
+          <Text color="green" wrap="truncate-end">
             {'>'} {action.command} {action.args?.join(' ')}
           </Text>
           {action.reasoning && (
-            <Text color="gray" wrap="truncate-end">
-              {action.reasoning.slice(0, 60)}{action.reasoning.length > 60 ? '...' : ''}
-            </Text>
+            <Text color="gray" wrap="truncate-end">{action.reasoning}</Text>
           )}
         </Box>
       ) : (
@@ -209,10 +207,10 @@ const LogPanel = memo(function LogPanel({ logs, height }: { logs: LogEntry[]; he
         <Text color="gray">No events yet...</Text>
       ) : (
         visibleLogs.map((log, i) => (
-          <Box key={i}>
+          <Text key={i} wrap="truncate-end">
             <Text color="gray">[{log.timestamp.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}] </Text>
-            <Text color={getColor(log.type)} wrap="truncate-end">{log.message}</Text>
-          </Box>
+            <Text color={getColor(log.type)}>{log.message}</Text>
+          </Text>
         ))
       )}
     </Box>
@@ -241,14 +239,14 @@ const NotebookPanel = memo(function NotebookPanel({ notebook, height }: { notebo
           {notebook.disposition && (
             <Box flexDirection="column" marginTop={1}>
               <Text color="cyan" bold>DISPOSITION</Text>
-              <Text color="white" wrap="wrap">{notebook.disposition}</Text>
+              <Text color="white" wrap="truncate-end">{notebook.disposition}</Text>
             </Box>
           )}
           {notebook.goals.length > 0 && (
             <Box flexDirection="column" marginTop={1}>
               <Text color="green" bold>GOALS</Text>
               {notebook.goals.slice(0, 5).map((goal, i) => (
-                <Text key={i} color="white">{'>'} {goal}</Text>
+                <Text key={i} color="white" wrap="truncate-end">{'>'} {goal}</Text>
               ))}
               {notebook.goals.length > 5 && (
                 <Text color="gray">+{notebook.goals.length - 5} more</Text>
@@ -258,7 +256,7 @@ const NotebookPanel = memo(function NotebookPanel({ notebook, height }: { notebo
           {notebook.notes && (
             <Box flexDirection="column" marginTop={1}>
               <Text color="magenta" bold>NOTES</Text>
-              <Text color="gray" wrap="wrap">{notebook.notes.slice(0, 200)}{notebook.notes.length > 200 ? '...' : ''}</Text>
+              <Text color="gray" wrap="truncate-end">{notebook.notes}</Text>
             </Box>
           )}
         </>
