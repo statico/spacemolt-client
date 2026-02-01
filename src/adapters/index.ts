@@ -14,19 +14,19 @@ import type { LLMAdapter } from './base';
 
 export type AdapterType = 'ollama' | 'claude' | 'openai' | 'gemini' | 'groq';
 
-export function createAdapter(type: AdapterType): LLMAdapter {
+export function createAdapter(type: AdapterType, model?: string): LLMAdapter {
   switch (type) {
     case 'ollama':
-      return new OllamaAdapter();
+      return new OllamaAdapter(model ? { model } : {});
     case 'claude':
-      return new ClaudeAdapter();
+      return new ClaudeAdapter(model ? { model } : {});
     case 'openai':
-      return new OpenAIAdapter();
+      return new OpenAIAdapter(model ? { model } : {});
     case 'gemini':
-      return new GeminiAdapter();
+      return new GeminiAdapter(model ? { model } : {});
     case 'groq':
-      return new GroqAdapter();
+      return new GroqAdapter(model ? { model } : {});
     default:
-      return new OllamaAdapter();
+      return new OllamaAdapter(model ? { model } : {});
   }
 }

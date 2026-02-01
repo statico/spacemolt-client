@@ -16,12 +16,16 @@ import { type AdapterType, createAdapter } from './src/adapters';
 
 const args = process.argv.slice(2);
 let adapterType: AdapterType = 'ollama';
+let modelOverride: string | undefined;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--adapter' || args[i] === '-a') {
     const type = args[i + 1];
     if (type && ['ollama', 'claude', 'openai', 'gemini', 'groq'].includes(type)) {
       adapterType = type as AdapterType;
     }
+  }
+  if (args[i] === '--model' || args[i] === '-m') {
+    modelOverride = args[i + 1];
   }
 }
 
@@ -70,7 +74,7 @@ function GameScreen({
       onAction: setCurrentAction,
       onThinking: setThinking,
       onNotebook: setNotebook,
-    });
+    }, modelOverride);
     setEngine(gameEngine);
 
     if (credentials) {
@@ -128,7 +132,7 @@ function Root() {
         setPlayStyle(style);
         setCredentials(null);
         try {
-          const adapter = createAdapter(adapterType);
+          const adapter = createAdapter(adapterType, modelOverride);
           const identity = await adapter.generateIdentity(style);
           if (!cancelled) {
             setNewPlayer({ username: identity.username, empire: identity.empire });

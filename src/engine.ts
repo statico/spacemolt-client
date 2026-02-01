@@ -30,9 +30,10 @@ export class GameEngine {
   constructor(
     adapterType: AdapterType,
     strategy: string,
-    callbacks: EngineCallbacks
+    callbacks: EngineCallbacks,
+    model?: string
   ) {
-    this.adapter = createAdapter(adapterType);
+    this.adapter = createAdapter(adapterType, model);
     this.strategy = strategy;
     this.callbacks = callbacks;
 
