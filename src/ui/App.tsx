@@ -24,159 +24,150 @@ interface AppProps {
 
 type TabView = 'log' | 'notebook';
 
-const Header = memo(function Header({ version, tick }: { version?: string; tick: number }) {
+// Orange/amber color for borders
+const BORDER_COLOR = 'yellow';
+const HEADER_COLOR = 'cyan';
+const ACCENT_COLOR = 'yellow';
+
+function progressBar(current: number, max: number, width: number = 20): string {
+  const pct = Math.max(0, Math.min(1, current / max));
+  const filled = Math.round(pct * width);
+  const empty = width - filled;
+  return '[' + '|'.repeat(filled) + '-'.repeat(empty) + ']';
+}
+
+const Header = memo(function Header({
+  state,
+  adapterName,
+}: {
+  state: ClientState;
+  adapterName: string;
+}) {
+  const { player, connected } = state;
+  const connStatus = connected ? 'CONNECTED' : 'DISCONNECTED';
+
   return (
     <Box flexDirection="column">
-      <Box>
-        <Text color="magenta" bold>
-          {'>>>'} SPACEMOLT {'<<<'}
+      <Box justifyContent="center">
+        <Text color={ACCENT_COLOR} bold>
+          {'╔═══'}
         </Text>
+        <Text color={HEADER_COLOR} bold>
+          {' SpaceMolt: The Crustacean Cosmos - AI Client '}
+        </Text>
+        <Text color={ACCENT_COLOR} bold>
+          {'═══╗'}
+        </Text>
+      </Box>
+      <Box>
+        <Text color={ACCENT_COLOR}>║ </Text>
+        <Text color={HEADER_COLOR}>PILOT: </Text>
+        <Text color="white">{player?.username || '???'}</Text>
         <Text color="gray"> | </Text>
-        <Text color="cyan">v{version || '???'}</Text>
+        <Text color={HEADER_COLOR}>EMPIRE: </Text>
+        <Text color="white">{player?.empire || '???'}</Text>
         <Text color="gray"> | </Text>
-        <Text color="yellow">T:{tick}</Text>
+        <Text color={HEADER_COLOR}>CR$: </Text>
+        <Text color={ACCENT_COLOR}>{player?.credits?.toLocaleString() || '0'}</Text>
+        <Text color="gray"> | </Text>
+        <Text color={HEADER_COLOR}>LOC: </Text>
+        <Text color="white">{state.system?.name || player?.current_system || '???'}</Text>
+        <Text color="gray"> | </Text>
+        <Text color={HEADER_COLOR}>TICK: </Text>
+        <Text color="white">{state.currentTick}</Text>
+        <Text color="gray"> | </Text>
+        <Text color={connected ? 'green' : 'red'}>{connStatus}</Text>
+        <Text color="gray"> ({adapterName})</Text>
+        <Text color={ACCENT_COLOR}> ║</Text>
       </Box>
     </Box>
   );
 });
 
-const StatusPanel = memo(function StatusPanel({
+const ShipStatusPanel = memo(function ShipStatusPanel({
   state,
-  strategy,
-  adapterName,
+  thinking,
+  action,
 }: {
   state: ClientState;
-  strategy: string;
-  adapterName: string;
+  thinking: boolean;
+  action: GameAction | null;
 }) {
-  const { connected, player, ship, system, poi, inCombat } = state;
+  const { player, ship, poi, inCombat } = state;
 
   if (!player || !ship) {
-    const status = !connected ? 'Connecting...' : 'Authenticating...';
     return (
-      <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1}>
-        <Text color="yellow">
-          <Spinner type="dots" /> {status}
+      <Box flexDirection="column" borderStyle="single" borderColor={BORDER_COLOR} paddingX={1}>
+        <Text color={HEADER_COLOR} bold>{'═ SHIP STATUS ═'}</Text>
+        <Text color={ACCENT_COLOR}>
+          <Spinner type="dots" /> {!state.connected ? 'Connecting...' : 'Authenticating...'}
         </Text>
       </Box>
     );
   }
 
-  const hullPct = ship.hull / ship.max_hull;
-  const fuelPct = ship.fuel / ship.max_fuel;
-
   return (
-    <Box flexDirection="column" borderStyle="single" borderColor={inCombat ? 'red' : 'green'} paddingX={1}>
-      <Box>
-        <Text color="green" bold>
-          {player.username}
-        </Text>
-        <Text color="gray"> [{player.empire.toUpperCase().slice(0, 3)}]</Text>
-      </Box>
-      {inCombat && <Text color="red" bold>!!! COMBAT !!!</Text>}
+    <Box flexDirection="column" borderStyle="single" borderColor={inCombat ? 'red' : BORDER_COLOR} paddingX={1}>
+      <Text color={HEADER_COLOR} bold>{'═ SHIP STATUS ═'}</Text>
 
-      <Box marginTop={1} flexDirection="column">
-        <Text color="cyan" wrap="truncate-end">LOC: <Text color="white">{system?.name || player.current_system}</Text></Text>
-        <Text color="gray" wrap="truncate-end">    {poi?.name || player.current_poi}</Text>
-        {player.docked_at_base && <Text color="blue">[DOCKED]</Text>}
+      {/* ASCII Ship Art */}
+      <Box marginY={1} flexDirection="column">
+        <Text color={ACCENT_COLOR}>    /\</Text>
+        <Text color={ACCENT_COLOR}>   /  \</Text>
+        <Text color={ACCENT_COLOR}>  |    |</Text>
+        <Text color={ACCENT_COLOR}>  | {inCombat ? <Text color="red">!!</Text> : 'AI'} |</Text>
+        <Text color={ACCENT_COLOR}> /|    |\</Text>
+        <Text color={ACCENT_COLOR}>/_|____|_\</Text>
       </Box>
 
-      <Box marginTop={1}>
-        <Text color="yellow">CR$ {player.credits.toLocaleString()}</Text>
-      </Box>
-
-      <Box marginTop={1} flexDirection="column">
-        <Text color={hullPct < 0.3 ? 'red' : 'green'}>
-          HULL {ship.hull}/{ship.max_hull}
-        </Text>
-        <Text color="blue">
-          SHLD {ship.shield}/{ship.max_shield}
-        </Text>
-        <Text color={fuelPct < 0.2 ? 'red' : 'yellow'}>
-          FUEL {ship.fuel}/{ship.max_fuel}
-        </Text>
-      </Box>
-
-      <Box marginTop={1}>
-        <Text color="gray">CARGO: </Text>
-        <Text color="white">{ship.cargo_used}/{ship.cargo_capacity}</Text>
-      </Box>
-      {ship.cargo.length > 0 && (
-        <Text color="gray" wrap="truncate-end">
-          [{ship.cargo.map((c) => `${c.item_id}:${c.quantity}`).join(', ')}]
-        </Text>
-      )}
-
-      <Box marginTop={1} borderStyle="single" borderColor="magenta" paddingX={1}>
-        <Text color="magenta">AI: <Text color="white">{adapterName}</Text></Text>
-      </Box>
+      <Text color="white" wrap="truncate-end">
+        HULL:   {progressBar(ship.hull, ship.max_hull, 12)} {Math.round((ship.hull / ship.max_hull) * 100)}%
+      </Text>
+      <Text color="blue" wrap="truncate-end">
+        SHIELD: {progressBar(ship.shield, ship.max_shield, 12)} {Math.round((ship.shield / ship.max_shield) * 100)}%
+      </Text>
+      <Text color={ACCENT_COLOR} wrap="truncate-end">
+        FUEL:   {progressBar(ship.fuel, ship.max_fuel, 12)} {Math.round((ship.fuel / ship.max_fuel) * 100)}%
+      </Text>
       <Text color="gray" wrap="truncate-end">
-        {strategy.slice(0, 30)}{strategy.length > 30 ? '...' : ''}
+        CARGO:  {ship.cargo_used}/{ship.cargo_capacity}
       </Text>
-    </Box>
-  );
-});
 
-const NearbyPanel = memo(function NearbyPanel({ nearby, maxVisible }: { nearby: ClientState['nearby']; maxVisible: number }) {
-  const players = nearby || [];
-
-  return (
-    <Box flexDirection="column" borderStyle="single" borderColor="cyan" paddingX={1}>
-      <Text color="cyan" bold>
-        CONTACTS [{players.length}]
-      </Text>
-      {players.length === 0 ? (
-        <Text color="gray">No contacts in range</Text>
-      ) : (
-        <>
-          {players.slice(0, maxVisible).map((p, i) => (
-            <Text key={i} wrap="truncate-end">
-              <Text color={p.in_combat ? 'red' : 'white'}>
-                {p.anonymous ? '[ANON]' : p.username || '???'}
-              </Text>
-              {p.clan_tag && <Text color="yellow"> [{p.clan_tag}]</Text>}
-              {p.faction_tag && <Text color="blue"> &lt;{p.faction_tag}&gt;</Text>}
-              {p.in_combat && <Text color="red"> *</Text>}
-            </Text>
-          ))}
-          {players.length > maxVisible && (
-            <Text color="gray">+{players.length - maxVisible} more</Text>
-          )}
-        </>
-      )}
-    </Box>
-  );
-});
-
-const ActionPanel = memo(function ActionPanel({ action, thinking }: { action: GameAction | null; thinking: boolean }) {
-  return (
-    <Box flexDirection="column" borderStyle="single" borderColor="magenta" paddingX={1}>
-      <Text color="magenta" bold>
-        ACTION
-      </Text>
-      {thinking ? (
-        <Text color="yellow">
-          <Spinner type="dots" /> Thinking...
-        </Text>
-      ) : action ? (
-        <Box flexDirection="column">
-          <Text color="green" wrap="truncate-end">
-            {'>'} {action.command} {action.args?.join(' ')}
-          </Text>
-          {action.reasoning && (
-            <Text color="gray" wrap="truncate-end">{action.reasoning}</Text>
-          )}
+      {poi && (
+        <Box marginTop={1}>
+          <Text color="gray">@ </Text>
+          <Text color="white" wrap="truncate-end">{poi.name}</Text>
+          {player.docked_at_base && <Text color="cyan"> [DOCKED]</Text>}
         </Box>
-      ) : (
-        <Text color="gray">Waiting...</Text>
       )}
+
+      <Box marginTop={1} flexDirection="column">
+        <Text color={HEADER_COLOR} bold>{'═ CURRENT ACTION ═'}</Text>
+        {thinking ? (
+          <Text color={ACCENT_COLOR}>
+            <Spinner type="dots" /> Thinking...
+          </Text>
+        ) : action ? (
+          <>
+            <Text color="green" wrap="truncate-end">{'>'} {action.command} {action.args?.join(' ')}</Text>
+            {action.reasoning && <Text color="gray" wrap="truncate-end">{action.reasoning}</Text>}
+          </>
+        ) : (
+          <Text color="gray">Waiting for next tick...</Text>
+        )}
+      </Box>
     </Box>
   );
 });
 
-const LogPanel = memo(function LogPanel({ logs, height }: { logs: LogEntry[]; height: number }) {
+const LogPanel = memo(function LogPanel({ logs, height, activeTab, notebook }: {
+  logs: LogEntry[];
+  height: number;
+  activeTab: TabView;
+  notebook: Notebook;
+}) {
   const visibleLogs = useMemo(() => {
-    const maxLogs = Math.max(1, height - 2);
+    const maxLogs = Math.max(1, height - 4);
     return logs.slice(-maxLogs);
   }, [logs, height]);
 
@@ -191,25 +182,76 @@ const LogPanel = memo(function LogPanel({ logs, height }: { logs: LogEntry[]; he
     }
   };
 
+  const getPrefix = (type: LogEntry['type']) => {
+    switch (type) {
+      case 'action': return '> You:';
+      case 'event': return '> SYSTEM:';
+      case 'chat': return '> [Chat]';
+      case 'error': return '> ERROR:';
+      case 'system': return '> SERVER:';
+      default: return '>';
+    }
+  };
+
+  if (activeTab === 'notebook') {
+    const hasContent = notebook.disposition || notebook.goals.length > 0 || notebook.notes;
+    return (
+      <Box
+        flexDirection="column"
+        borderStyle="single"
+        borderColor={BORDER_COLOR}
+        paddingX={1}
+        height={height}
+        overflow="hidden"
+      >
+        <Text color={HEADER_COLOR} bold>{'═ PILOT NOTEBOOK ═'}</Text>
+        {!hasContent ? (
+          <Text color="gray">No notes yet...</Text>
+        ) : (
+          <>
+            {notebook.disposition && (
+              <>
+                <Text color={ACCENT_COLOR} bold>DISPOSITION:</Text>
+                <Text color="white" wrap="truncate-end">{notebook.disposition}</Text>
+              </>
+            )}
+            {notebook.goals.length > 0 && (
+              <>
+                <Text color={ACCENT_COLOR} bold>GOALS:</Text>
+                {notebook.goals.slice(0, 5).map((goal, i) => (
+                  <Text key={i} color="white" wrap="truncate-end">  {i + 1}. {goal}</Text>
+                ))}
+              </>
+            )}
+            {notebook.notes && (
+              <>
+                <Text color={ACCENT_COLOR} bold>NOTES:</Text>
+                <Text color="gray" wrap="truncate-end">{notebook.notes}</Text>
+              </>
+            )}
+          </>
+        )}
+      </Box>
+    );
+  }
+
   return (
     <Box
       flexDirection="column"
       borderStyle="single"
-      borderColor="gray"
+      borderColor={BORDER_COLOR}
       paddingX={1}
       height={height}
       overflow="hidden"
     >
-      <Text color="gray" bold>
-        EVENT LOG [{logs.length}]
-      </Text>
+      <Text color={HEADER_COLOR} bold>{'═ LOG & COMMS ═'}</Text>
       {visibleLogs.length === 0 ? (
         <Text color="gray">No events yet...</Text>
       ) : (
         visibleLogs.map((log, i) => (
           <Text key={i} wrap="truncate-end">
-            <Text color="gray">[{log.timestamp.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}] </Text>
-            <Text color={getColor(log.type)}>{log.message}</Text>
+            <Text color={getColor(log.type)}>{getPrefix(log.type)} </Text>
+            <Text color="white">{log.message}</Text>
           </Text>
         ))
       )}
@@ -217,72 +259,64 @@ const LogPanel = memo(function LogPanel({ logs, height }: { logs: LogEntry[]; he
   );
 });
 
-const NotebookPanel = memo(function NotebookPanel({ notebook, height }: { notebook: Notebook; height: number }) {
-  const hasContent = notebook.disposition || notebook.goals.length > 0 || notebook.notes;
+const InfoPanel = memo(function InfoPanel({
+  state,
+  strategy,
+}: {
+  state: ClientState;
+  strategy: string;
+}) {
+  const { nearby, system } = state;
+  const players = nearby || [];
 
   return (
-    <Box
-      flexDirection="column"
-      borderStyle="single"
-      borderColor="yellow"
-      paddingX={1}
-      height={height}
-      overflow="hidden"
-    >
-      <Text color="yellow" bold>
-        PILOT NOTEBOOK
-      </Text>
-      {!hasContent ? (
-        <Text color="gray">No notes yet...</Text>
+    <Box flexDirection="column" borderStyle="single" borderColor={BORDER_COLOR} paddingX={1}>
+      <Text color={HEADER_COLOR} bold>{'═ CONTACTS & INFO ═'}</Text>
+
+      <Text color={ACCENT_COLOR} bold>NEARBY PILOTS:</Text>
+      {players.length === 0 ? (
+        <Text color="gray">  No contacts in range</Text>
       ) : (
         <>
-          {notebook.disposition && (
-            <Box flexDirection="column" marginTop={1}>
-              <Text color="cyan" bold>DISPOSITION</Text>
-              <Text color="white" wrap="truncate-end">{notebook.disposition}</Text>
-            </Box>
-          )}
-          {notebook.goals.length > 0 && (
-            <Box flexDirection="column" marginTop={1}>
-              <Text color="green" bold>GOALS</Text>
-              {notebook.goals.slice(0, 5).map((goal, i) => (
-                <Text key={i} color="white" wrap="truncate-end">{'>'} {goal}</Text>
-              ))}
-              {notebook.goals.length > 5 && (
-                <Text color="gray">+{notebook.goals.length - 5} more</Text>
-              )}
-            </Box>
-          )}
-          {notebook.notes && (
-            <Box flexDirection="column" marginTop={1}>
-              <Text color="magenta" bold>NOTES</Text>
-              <Text color="gray" wrap="truncate-end">{notebook.notes}</Text>
-            </Box>
-          )}
+          {players.slice(0, 5).map((p, i) => (
+            <Text key={i} wrap="truncate-end">
+              <Text color="white">  {i + 1}. </Text>
+              <Text color={p.in_combat ? 'red' : 'cyan'}>
+                {p.anonymous ? '[ANON]' : p.username || '???'}
+              </Text>
+              {p.clan_tag && <Text color={ACCENT_COLOR}> [{p.clan_tag}]</Text>}
+              {p.in_combat && <Text color="red"> *COMBAT*</Text>}
+            </Text>
+          ))}
+          {players.length > 5 && <Text color="gray">  +{players.length - 5} more</Text>}
         </>
       )}
+
+      {system && (
+        <Box marginTop={1} flexDirection="column">
+          <Text color={ACCENT_COLOR} bold>SYSTEM INFO:</Text>
+          <Text color="white" wrap="truncate-end">  {system.name}</Text>
+        </Box>
+      )}
+
+      <Box marginTop={1} flexDirection="column">
+        <Text color={ACCENT_COLOR} bold>AI STRATEGY:</Text>
+        <Text color="gray" wrap="truncate-end">  {strategy.slice(0, 40)}{strategy.length > 40 ? '...' : ''}</Text>
+      </Box>
     </Box>
   );
 });
 
-const TabBar = memo(function TabBar({ activeTab, onTabChange }: { activeTab: TabView; onTabChange: (tab: TabView) => void }) {
+const Footer = memo(function Footer({ activeTab }: { activeTab: TabView }) {
   return (
-    <Box>
-      <Text color={activeTab === 'log' ? 'cyan' : 'gray'} bold={activeTab === 'log'}>
-        [1] LOG
-      </Text>
-      <Text color="gray"> | </Text>
-      <Text color={activeTab === 'notebook' ? 'yellow' : 'gray'} bold={activeTab === 'notebook'}>
-        [2] NOTEBOOK
-      </Text>
-    </Box>
-  );
-});
-
-const FooterBar = memo(function FooterBar() {
-  return (
-    <Box>
-      <Text color="gray">[Q]uit [1]Log [2]Notebook</Text>
+    <Box flexDirection="column">
+      <Box>
+        <Text color={ACCENT_COLOR}>╚═ </Text>
+        <Text color="gray">[Q]uit </Text>
+        <Text color={activeTab === 'log' ? HEADER_COLOR : 'gray'}>[1]Log </Text>
+        <Text color={activeTab === 'notebook' ? HEADER_COLOR : 'gray'}>[2]Notebook</Text>
+        <Text color={ACCENT_COLOR}> ═╝</Text>
+      </Box>
     </Box>
   );
 });
@@ -310,43 +344,32 @@ export const App = memo(function App({
     if (input === '2') setActiveTab('notebook');
   });
 
-  // Calculate available height, reserving last row
   const terminalHeight = stdout?.rows ?? 24;
-  const availableHeight = terminalHeight - 2; // Reserve bottom row + padding
-
-  // Main panel gets most of vertical space
-  const mainPanelHeight = Math.max(8, availableHeight - 4);
-
-  // Calculate how many contacts we can show based on remaining sidebar space
-  const sidebarUsedHeight = 22; // Approximate height of status + action panels
-  const contactsMaxVisible = Math.max(3, Math.floor((availableHeight - sidebarUsedHeight) / 1.5));
+  const availableHeight = terminalHeight - 5; // Header + footer + margins
+  const mainPanelHeight = Math.max(10, availableHeight);
 
   return (
-    <Box flexDirection="column" height={availableHeight}>
-      <Header version={state.serverVersion} tick={state.currentTick} />
-      <Text color="cyan" dimColor>{'─'.repeat(60)}</Text>
+    <Box flexDirection="column">
+      <Header state={state} adapterName={adapterName} />
 
-      <Box flexDirection="row" flexGrow={1}>
-        {/* Left sidebar: 1/3 width */}
-        <Box flexDirection="column" width="34%">
-          <StatusPanel state={state} strategy={strategy} adapterName={adapterName} />
-          <ActionPanel action={currentAction} thinking={thinking} />
-          <NearbyPanel nearby={state.nearby} maxVisible={contactsMaxVisible} />
+      <Box flexDirection="row">
+        {/* Left: Ship Status - 25% */}
+        <Box width="25%">
+          <ShipStatusPanel state={state} thinking={thinking} action={currentAction} />
         </Box>
 
-        {/* Right: 2/3 width for main panel */}
-        <Box flexDirection="column" width="66%" marginLeft={1}>
-          <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
-          {activeTab === 'log' ? (
-            <LogPanel logs={logs} height={mainPanelHeight} />
-          ) : (
-            <NotebookPanel notebook={notebook} height={mainPanelHeight} />
-          )}
+        {/* Center: Log & Comms - 50% */}
+        <Box width="50%">
+          <LogPanel logs={logs} height={mainPanelHeight} activeTab={activeTab} notebook={notebook} />
+        </Box>
+
+        {/* Right: Info Panel - 25% */}
+        <Box width="25%">
+          <InfoPanel state={state} strategy={strategy} />
         </Box>
       </Box>
 
-      <Text color="cyan" dimColor>{'─'.repeat(60)}</Text>
-      <FooterBar />
+      <Footer activeTab={activeTab} />
     </Box>
   );
 });
