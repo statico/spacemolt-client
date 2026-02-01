@@ -353,18 +353,18 @@ export const App = memo(function App({
       <Header state={state} adapterName={adapterName} />
 
       <Box flexDirection="row">
-        {/* Left: Ship Status - 25% */}
-        <Box width="25%">
+        {/* Left: Ship Status - fixed width */}
+        <Box width={30}>
           <ShipStatusPanel state={state} thinking={thinking} action={currentAction} />
         </Box>
 
-        {/* Center: Log & Comms - 50% */}
-        <Box width="50%">
+        {/* Center: Log & Comms - flex to fill */}
+        <Box flexGrow={1}>
           <LogPanel logs={logs} height={mainPanelHeight} activeTab={activeTab} notebook={notebook} />
         </Box>
 
-        {/* Right: Info Panel - 25% */}
-        <Box width="25%">
+        {/* Right: Info Panel - fixed width */}
+        <Box width={28}>
           <InfoPanel state={state} strategy={strategy} />
         </Box>
       </Box>
