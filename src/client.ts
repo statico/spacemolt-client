@@ -269,6 +269,22 @@ export class SpaceMoltClient {
       case 'version_info':
         this.emit('version_info', m.payload);
         break;
+      case 'combat_update':
+        this.emit('combat_update', m.payload);
+        break;
+      case 'player_died':
+        this.emit('player_died', m.payload);
+        break;
+      case 'mining_yield':
+        this.emit('mining_yield', m.payload);
+        break;
+      case 'trade_offer_received':
+        this.emit('trade_offer_received', m.payload);
+        break;
+      case 'tick':
+        this.state.currentTick = (m.payload as { tick: number }).tick;
+        this.emit('tick', m.payload);
+        break;
       default:
         this.emit(m.type, m.payload);
     }
@@ -439,6 +455,96 @@ export class SpaceMoltClient {
     this.send('set_anonymous', { anonymous });
   }
 
+  // Ship Management
+  buyShip(shipClass: string): void {
+    this.send('buy_ship', { ship_class: shipClass });
+  }
+
+  installMod(moduleId: string, slotIdx: number): void {
+    this.send('install_mod', { module_id: moduleId, slot_idx: slotIdx });
+  }
+
+  uninstallMod(slotIdx: number): void {
+    this.send('uninstall_mod', { slot_idx: slotIdx });
+  }
+
+  // Market Listings
+  listItem(itemId: string, quantity: number, priceEach: number): void {
+    this.send('list_item', { item_id: itemId, quantity, price_each: priceEach });
+  }
+
+  cancelListing(listingId: string): void {
+    this.send('cancel_list', { listing_id: listingId });
+  }
+
+  // Wrecks & Salvage
+  getWrecks(): void {
+    this.send('get_wrecks');
+  }
+
+  lootWreck(wreckId: string, itemId: string, quantity: number): void {
+    this.send('loot_wreck', { wreck_id: wreckId, item_id: itemId, quantity });
+  }
+
+  salvageWreck(wreckId: string): void {
+    this.send('salvage_wreck', { wreck_id: wreckId });
+  }
+
+  // Insurance
+  buyInsurance(coveragePercent: number): void {
+    this.send('buy_insurance', { coverage_percent: Math.min(100, Math.max(50, coveragePercent)) });
+  }
+
+  claimInsurance(): void {
+    this.send('claim_insurance');
+  }
+
+  setHomeBase(): void {
+    this.send('set_home_base');
+  }
+
+  // Faction Management
+  joinFaction(factionId: string): void {
+    this.send('join_faction', { faction_id: factionId });
+  }
+
+  leaveFaction(): void {
+    this.send('leave_faction');
+  }
+
+  factionInvite(playerId: string): void {
+    this.send('faction_invite', { player_id: playerId });
+  }
+
+  factionKick(playerId: string): void {
+    this.send('faction_kick', { player_id: playerId });
+  }
+
+  factionPromote(playerId: string, roleId: string): void {
+    this.send('faction_promote', { player_id: playerId, role_id: roleId });
+  }
+
+  // Player-to-Player Trading
+  tradeOffer(targetId: string, offerItems: { item_id: string; quantity: number }[], offerCredits: number, requestItems: { item_id: string; quantity: number }[], requestCredits: number): void {
+    this.send('trade_offer', { target_id: targetId, offer_items: offerItems, offer_credits: offerCredits, request_items: requestItems, request_credits: requestCredits });
+  }
+
+  tradeAccept(tradeId: string): void {
+    this.send('trade_accept', { trade_id: tradeId });
+  }
+
+  tradeDecline(tradeId: string): void {
+    this.send('trade_decline', { trade_id: tradeId });
+  }
+
+  tradeCancel(tradeId: string): void {
+    this.send('trade_cancel', { trade_id: tradeId });
+  }
+
+  getTrades(): void {
+    this.send('get_trades');
+  }
+
   // Queries
   getStatus(): void {
     this.send('get_status');
@@ -456,6 +562,10 @@ export class SpaceMoltClient {
     this.send('get_base');
   }
 
+  getShip(): void {
+    this.send('get_ship');
+  }
+
   getSkills(): void {
     this.send('get_skills');
   }
@@ -466,6 +576,10 @@ export class SpaceMoltClient {
 
   getVersion(): void {
     this.send('get_version');
+  }
+
+  help(topic?: string): void {
+    this.send('help', topic ? { topic } : undefined);
   }
 
   // Forum
@@ -496,52 +610,88 @@ export class SpaceMoltClient {
   // Execute a command string (for LLM-generated actions)
   executeCommand(command: string, args: string[] = []): void {
     const arg0 = args[0]?.trim();
+    const arg1 = args[1]?.trim();
     const quantity = Math.max(0, parseInt(args[1], 10) || 1);
 
     switch (command) {
+      // Navigation
       case 'travel':
         if (arg0) this.travel(arg0);
-        else this.log('Unknown command:', 'travel requires target_poi');
         break;
       case 'jump':
         if (arg0) this.jump(arg0);
-        else this.log('Unknown command:', 'jump requires target_system');
         break;
       case 'dock': this.dock(); break;
       case 'undock': this.undock(); break;
-      case 'mine': this.mine(); break;
+
+      // Combat
       case 'attack':
         if (arg0) this.attack(arg0);
-        else this.log('Unknown command:', 'attack requires target_id');
         break;
       case 'scan':
         if (arg0) this.scan(arg0);
-        else this.log('Unknown command:', 'scan requires target_id');
         break;
+
+      // Mining
+      case 'mine': this.mine(); break;
+
+      // Trading
       case 'buy':
         if (arg0) this.buy(arg0, quantity);
-        else this.log('Unknown command:', 'buy requires listing_id');
         break;
       case 'sell':
         if (arg0) this.sell(arg0, quantity);
-        else this.log('Unknown command:', 'sell requires item_id');
         break;
+
+      // Ship
       case 'refuel': this.refuel(); break;
       case 'repair': this.repair(); break;
+      case 'buy_ship':
+        if (arg0) this.buyShip(arg0);
+        break;
+
+      // Wrecks
+      case 'get_wrecks': this.getWrecks(); break;
+      case 'salvage':
+        if (arg0) this.salvageWreck(arg0);
+        break;
+      case 'loot':
+        if (arg0 && arg1) this.lootWreck(arg0, arg1, quantity);
+        break;
+
+      // Insurance
+      case 'buy_insurance':
+        this.buyInsurance(parseInt(arg0, 10) || 75);
+        break;
+      case 'claim_insurance': this.claimInsurance(); break;
+      case 'set_home': this.setHomeBase(); break;
+
+      // Crafting
       case 'craft':
         if (arg0) this.craft(arg0);
-        else this.log('Unknown command:', 'craft requires recipe_id');
         break;
+
+      // Chat
       case 'say': this.localChat(args.join(' ')); break;
       case 'faction': this.factionChat(args.join(' ')); break;
       case 'msg':
         if (args.length >= 2 && arg0) this.privateMessage(arg0, args.slice(1).join(' '));
-        else this.log('Unknown command:', 'msg requires target_id and message');
         break;
+
+      // Queries
       case 'status': this.getStatus(); break;
       case 'system': this.getSystem(); break;
       case 'poi': this.getPOI(); break;
       case 'base': this.getBase(); break;
+      case 'ship': this.getShip(); break;
+      case 'skills': this.getSkills(); break;
+      case 'recipes': this.getRecipes(); break;
+      case 'wrecks': this.getWrecks(); break;
+      case 'trades': this.getTrades(); break;
+      case 'help':
+        this.help(arg0);
+        break;
+
       default:
         this.log('Unknown command:', command);
     }

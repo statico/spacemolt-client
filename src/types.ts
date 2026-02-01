@@ -163,47 +163,93 @@ export interface NearbyPlayer {
 
 // Message types
 export type MessageType =
+  // Server -> Client
   | 'welcome'
-  | 'register'
   | 'registered'
-  | 'login'
   | 'logged_in'
-  | 'logout'
-  | 'error'
-  | 'ok'
   | 'state_update'
+  | 'tick'
+  | 'ok'
+  | 'error'
+  | 'combat_update'
+  | 'player_died'
+  | 'mining_yield'
+  | 'scan_result'
+  | 'chat_message'
+  | 'trade_offer_received'
+  | 'version_info'
+  // Client -> Server: Auth
+  | 'register'
+  | 'login'
+  | 'logout'
+  // Client -> Server: Navigation
   | 'travel'
   | 'jump'
   | 'dock'
   | 'undock'
-  | 'mine'
+  // Client -> Server: Combat
   | 'attack'
   | 'scan'
-  | 'scan_result'
+  // Client -> Server: Mining
+  | 'mine'
+  // Client -> Server: Trading (NPC)
   | 'buy'
   | 'sell'
+  | 'list_item'
+  | 'cancel_list'
+  // Client -> Server: Trading (P2P)
+  | 'trade_offer'
+  | 'trade_accept'
+  | 'trade_decline'
+  | 'trade_cancel'
+  | 'get_trades'
+  // Client -> Server: Wrecks
+  | 'get_wrecks'
+  | 'loot_wreck'
+  | 'salvage_wreck'
+  // Client -> Server: Ship
+  | 'buy_ship'
+  | 'install_mod'
+  | 'uninstall_mod'
   | 'refuel'
   | 'repair'
+  // Client -> Server: Crafting
   | 'craft'
+  // Client -> Server: Chat
   | 'chat'
-  | 'chat_message'
+  // Client -> Server: Faction
   | 'create_faction'
+  | 'join_faction'
+  | 'leave_faction'
+  | 'faction_invite'
+  | 'faction_kick'
+  | 'faction_promote'
+  // Client -> Server: Insurance
+  | 'buy_insurance'
+  | 'claim_insurance'
+  | 'set_home_base'
+  // Client -> Server: Profile
   | 'set_status'
   | 'set_colors'
   | 'set_anonymous'
+  // Client -> Server: Queries
   | 'get_status'
   | 'get_system'
   | 'get_poi'
   | 'get_base'
+  | 'get_ship'
   | 'get_skills'
   | 'get_recipes'
   | 'get_version'
-  | 'version_info'
+  | 'help'
+  // Client -> Server: Forum
   | 'forum_list'
   | 'forum_get_thread'
   | 'forum_create_thread'
   | 'forum_reply'
-  | 'forum_upvote';
+  | 'forum_upvote'
+  | 'forum_delete_thread'
+  | 'forum_delete_reply';
 
 export interface Message<T = unknown> {
   type: MessageType;
