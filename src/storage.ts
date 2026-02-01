@@ -5,6 +5,7 @@ const PLAY_STYLE_FILE = '.spacemolt-playstyle';
 const JOURNAL_FILE = 'spacemolt-journal.md';
 const NOTES_FILE = 'spacemolt-notes.md';
 const MAP_FILE = 'spacemolt-map.md';
+const NOTEBOOK_FILE = 'spacemolt-notebook.md';
 
 export interface Credentials {
   username: string;
@@ -126,6 +127,66 @@ export async function loadMap(): Promise<string> {
 
 export async function saveMap(map: string): Promise<void> {
   await Bun.write(MAP_FILE, map);
+}
+
+export interface Notebook {
+  disposition: string;
+  goals: string[];
+  notes: string;
+}
+
+export async function loadNotebook(): Promise<Notebook> {
+  try {
+    const file = Bun.file(NOTEBOOK_FILE);
+    if (await file.exists()) {
+      const text = await file.text();
+      return parseNotebook(text);
+    }
+  } catch {
+    // No notebook
+  }
+  return { disposition: '', goals: [], notes: '' };
+}
+
+function parseNotebook(text: string): Notebook {
+  const lines = text.split('\n');
+  let disposition = '';
+  const goals: string[] = [];
+  let notes = '';
+  let section = '';
+
+  for (const line of lines) {
+    if (line.startsWith('## Disposition')) {
+      section = 'disposition';
+    } else if (line.startsWith('## Goals')) {
+      section = 'goals';
+    } else if (line.startsWith('## Notes')) {
+      section = 'notes';
+    } else if (section === 'disposition' && line.trim()) {
+      disposition = line.trim();
+    } else if (section === 'goals' && line.trim().startsWith('- ')) {
+      goals.push(line.trim().slice(2));
+    } else if (section === 'notes' && line.trim()) {
+      notes += (notes ? '\n' : '') + line.trim();
+    }
+  }
+
+  return { disposition, goals, notes };
+}
+
+export async function saveNotebook(notebook: Notebook): Promise<void> {
+  const content = `# Pilot Notebook
+
+## Disposition
+${notebook.disposition}
+
+## Goals
+${notebook.goals.map(g => `- ${g}`).join('\n')}
+
+## Notes
+${notebook.notes}
+`;
+  await Bun.write(NOTEBOOK_FILE, content);
 }
 
 export async function loadAllData(): Promise<StoredData> {

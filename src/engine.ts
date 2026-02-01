@@ -1,6 +1,6 @@
 import { SpaceMoltClient, type ClientState } from './client';
 import { createAdapter, type AdapterType, type LLMAdapter } from './adapters';
-import { loadCredentials, saveCredentials, loadNotes, appendJournal, type Credentials } from './storage';
+import { loadCredentials, saveCredentials, loadNotes, appendJournal, loadNotebook, saveNotebook, type Credentials, type Notebook } from './storage';
 import type { GameAction, WelcomePayload, RegisteredPayload, LoggedInPayload, ErrorPayload, StateUpdatePayload, ChatMessage, EmpireID } from './types';
 import type { LogEntry } from './ui/App';
 
@@ -12,6 +12,7 @@ export interface EngineCallbacks {
   onLog: (entry: LogEntry) => void;
   onAction: (action: GameAction | null) => void;
   onThinking: (thinking: boolean) => void;
+  onNotebook?: (notebook: Notebook) => void;
 }
 
 export class GameEngine {
@@ -21,6 +22,7 @@ export class GameEngine {
   private credentials: Credentials | null = null;
   private recentEvents: string[] = [];
   private notes: string = '';
+  private notebook: Notebook = { disposition: '', goals: [], notes: '' };
   private callbacks: EngineCallbacks;
   private tickInterval: ReturnType<typeof setInterval> | null = null;
   private running = false;
@@ -190,6 +192,8 @@ export class GameEngine {
       await saveCredentials(this.credentials);
     }
     this.notes = await loadNotes();
+    this.notebook = await loadNotebook();
+    this.callbacks.onNotebook?.(this.notebook);
     this.running = true;
     await this.client.connect();
   }

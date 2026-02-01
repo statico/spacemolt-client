@@ -1,0 +1,80 @@
+import OpenAI from 'openai';
+import type { GameAction } from '../types';
+import type { ClientState } from '../client';
+import {
+  type LLMAdapter,
+  type PlayerIdentity,
+  buildSystemPrompt,
+  buildStatePrompt,
+  parseActionResponse,
+  buildIdentityPrompt,
+  parseIdentityResponse,
+} from './base';
+
+export interface GroqConfig {
+  apiKey?: string;
+  model?: string;
+}
+
+export class GroqAdapter implements LLMAdapter {
+  name = 'Groq';
+  private client: OpenAI;
+  private model: string;
+
+  constructor(config: GroqConfig = {}) {
+    this.client = new OpenAI({
+      apiKey: config.apiKey || process.env.GROQ_API_KEY,
+      baseURL: 'https://api.groq.com/openai/v1',
+    });
+    this.model = config.model || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  }
+
+  async generateAction(
+    state: ClientState,
+    strategy: string,
+    recentEvents: string[],
+    notes: string
+  ): Promise<GameAction> {
+    const systemPrompt = buildSystemPrompt(strategy);
+    const userPrompt = buildStatePrompt(state, recentEvents, notes);
+
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        max_tokens: 256,
+        temperature: 0.7,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      });
+
+      const content = response.choices[0]?.message?.content || '';
+      return parseActionResponse(content);
+    } catch (error) {
+      console.error('Groq error:', error);
+      return { command: 'status', reasoning: 'LLM error, checking status' };
+    }
+  }
+
+  async generateIdentity(playStyle: string): Promise<PlayerIdentity> {
+    const prompt = buildIdentityPrompt(playStyle);
+
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        max_tokens: 256,
+        temperature: 0.9,
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      const content = response.choices[0]?.message?.content || '';
+      return parseIdentityResponse(content);
+    } catch (error) {
+      console.error('Groq identity error:', error);
+      return parseIdentityResponse('');
+    }
+  }
+}
+
+export default GroqAdapter;

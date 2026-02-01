@@ -9,7 +9,7 @@ import { render, Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import { App, type LogEntry } from './src/ui/App';
 import { GameEngine } from './src/engine';
-import { loadCredentials, loadPlayStyle, type Credentials } from './src/storage';
+import { loadCredentials, loadPlayStyle, type Credentials, type Notebook } from './src/storage';
 import type { ClientState } from './src/client';
 import type { GameAction, EmpireID } from './src/types';
 import { type AdapterType, createAdapter } from './src/adapters';
@@ -19,7 +19,7 @@ let adapterType: AdapterType = 'ollama';
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--adapter' || args[i] === '-a') {
     const type = args[i + 1];
-    if (type && ['ollama', 'claude', 'openai', 'gemini'].includes(type)) {
+    if (type && ['ollama', 'claude', 'openai', 'gemini', 'groq'].includes(type)) {
       adapterType = type as AdapterType;
     }
   }
@@ -52,6 +52,7 @@ function GameScreen({
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [currentAction, setCurrentAction] = useState<GameAction | null>(null);
   const [thinking, setThinking] = useState(false);
+  const [notebook, setNotebook] = useState<Notebook>({ disposition: '', goals: [], notes: '' });
   const [engine, setEngine] = useState<GameEngine | null>(null);
 
   const handleLog = useCallback((entry: LogEntry) => {
@@ -68,6 +69,7 @@ function GameScreen({
       onLog: handleLog,
       onAction: setCurrentAction,
       onThinking: setThinking,
+      onNotebook: setNotebook,
     });
     setEngine(gameEngine);
 
@@ -92,6 +94,7 @@ function GameScreen({
       currentAction={currentAction}
       thinking={thinking}
       logs={logs}
+      notebook={notebook}
       onQuit={handleQuit}
     />
   );
@@ -162,4 +165,7 @@ function Root() {
 }
 
 console.clear();
-render(<Root />, { incrementalRendering: true });
+render(<Root />, {
+  incrementalRendering: true,
+  patchConsole: false,
+});
