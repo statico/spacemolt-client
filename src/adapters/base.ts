@@ -1,5 +1,6 @@
 import type { GameAction, EmpireID } from '../types';
 import type { ClientState } from '../client';
+import { logError } from '../logger';
 
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
@@ -172,23 +173,34 @@ const ALLOWED_COMMANDS = new Set([
 export function parseActionResponse(response: string): GameAction {
   // Try to extract JSON from the response
   const jsonMatch = response.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    return { command: 'status', reasoning: 'Failed to parse response, checking status' };
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      const rawCommand = (parsed.command || 'status').toString().toLowerCase().trim();
+      const command = ALLOWED_COMMANDS.has(rawCommand) ? rawCommand : 'status';
+      const args = Array.isArray(parsed.args)
+        ? parsed.args.map((a: unknown) => (a != null ? String(a) : '')).filter(Boolean)
+        : [];
+      return {
+        command,
+        args,
+        reasoning: parsed.reasoning || '',
+      };
+    } catch {
+      void logError('parse', `JSON parse error: ${response.slice(0, 500)}`);
+    }
   }
 
-  try {
-    const parsed = JSON.parse(jsonMatch[0]);
-    const rawCommand = (parsed.command || 'status').toString().toLowerCase().trim();
-    const command = ALLOWED_COMMANDS.has(rawCommand) ? rawCommand : 'status';
-    const args = Array.isArray(parsed.args)
-      ? parsed.args.map((a: unknown) => (a != null ? String(a) : '')).filter(Boolean)
-      : [];
-    return {
-      command,
-      args,
-      reasoning: parsed.reasoning || '',
-    };
-  } catch {
-    return { command: 'status', reasoning: 'JSON parse error, checking status' };
+  // Fallback: try to extract a command keyword from the response
+  const lower = response.toLowerCase();
+  for (const cmd of ALLOWED_COMMANDS) {
+    if (lower.includes(cmd)) {
+      void logError('parse', `No JSON, extracted "${cmd}" from: ${response.slice(0, 200)}`);
+      return { command: cmd, reasoning: `Extracted from non-JSON response` };
+    }
   }
+
+  // Log the failed response for debugging
+  void logError('parse', `Failed to parse: ${response.slice(0, 500)}`);
+  return { command: 'status', reasoning: 'Failed to parse response' };
 }
