@@ -120,7 +120,7 @@ FUEL: ${ship.fuel}/${ship.max_fuel}
 CARGO: ${ship.cargo_used}/${ship.cargo_capacity}
 `;
 
-    if (ship.cargo.length > 0) {
+    if (ship.cargo && ship.cargo.length > 0) {
       prompt += `CARGO CONTENTS:\n`;
       for (const item of ship.cargo) {
         prompt += `  - ${item.item_id}: ${item.quantity}\n`;
@@ -131,7 +131,7 @@ CARGO: ${ship.cargo_used}/${ship.cargo_capacity}
       prompt += `\n*** IN COMBAT! ***\n`;
     }
 
-    if (nearby.length > 0) {
+    if (nearby && nearby.length > 0) {
       prompt += `\nNEARBY PLAYERS:\n`;
       for (const p of nearby) {
         if (p.anonymous) {
