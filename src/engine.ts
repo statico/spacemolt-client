@@ -1,7 +1,7 @@
 import { SpaceMoltClient, type ClientState } from './client';
 import { createAdapter, type AdapterType, type LLMAdapter } from './adapters';
 import { loadCredentials, saveCredentials, loadNotes, appendJournal, loadNotebook, saveNotebook, type Credentials, type Notebook } from './storage';
-import type { GameAction, WelcomePayload, RegisteredPayload, LoggedInPayload, ErrorPayload, StateUpdatePayload, ChatMessage, EmpireID } from './types';
+import type { GameAction, WelcomePayload, RegisteredPayload, LoggedInPayload, ErrorPayload, StateUpdatePayload, ChatMessage, EmpireID, ScanResultPayload } from './types';
 import type { LogEntry } from './ui/App';
 
 const SERVER_URL = process.env.SPACEMOLT_URL || 'wss://game.spacemolt.com/ws';
@@ -177,6 +177,46 @@ export class GameEngine {
     this.client.on('disconnected', () => {
       this.log('system', 'Disconnected from server');
       this.stopAILoop();
+    });
+
+    // Game events
+    this.client.on<ScanResultPayload>('scan_result', (data) => {
+      if (data.success) {
+        const info = [
+          data.username && `Player: ${data.username}`,
+          data.ship_class && `Ship: ${data.ship_class}`,
+          data.hull !== undefined && `Hull: ${data.hull}`,
+          data.shield !== undefined && `Shield: ${data.shield}`,
+          data.faction_id && `Faction: ${data.faction_id}`,
+        ].filter(Boolean).join(', ');
+        this.log('event', `Scan: ${info || data.revealed_info.join(', ')}`);
+      } else {
+        this.log('event', `Scan failed on ${data.target_id}`);
+      }
+    });
+
+    this.client.on('combat_update', (data: Record<string, unknown>) => {
+      const attacker = data.attacker_id || 'Unknown';
+      const target = data.target_id || 'Unknown';
+      const damage = data.damage || 0;
+      this.log('event', `Combat: ${attacker} hit ${target} for ${damage} damage`);
+    });
+
+    this.client.on('player_died', (data: Record<string, unknown>) => {
+      const player = data.player_id || data.username || 'Unknown';
+      const killer = data.killer_id || data.killer || 'Unknown';
+      this.log('event', `DEATH: ${player} was destroyed by ${killer}`);
+    });
+
+    this.client.on('mining_yield', (data: Record<string, unknown>) => {
+      const ore = data.ore_type || data.resource || 'ore';
+      const qty = data.quantity || data.amount || 0;
+      this.log('event', `Mined ${qty}x ${ore}`);
+    });
+
+    this.client.on('trade_offer_received', (data: Record<string, unknown>) => {
+      const from = data.from_player || data.sender || 'Unknown';
+      this.log('event', `Trade offer received from ${from}`);
     });
   }
 
