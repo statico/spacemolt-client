@@ -156,14 +156,17 @@ export class GameEngine {
   }
 
   private startAILoop(): void {
-    if (this.tickInterval) return;
+    // Always clear existing interval to avoid duplicates
+    this.stopAILoop();
+
+    this.log('system', 'Starting AI loop...');
 
     // Run AI decision loop every 10 seconds (matching game tick rate)
     const tickRate = this.client.state.tickRate || 10;
     this.tickInterval = setInterval(() => this.runAITick(), tickRate * 1000);
 
-    // Run first tick immediately
-    this.runAITick();
+    // Run first tick after a short delay to ensure state is settled
+    setTimeout(() => this.runAITick(), 500);
   }
 
   private stopAILoop(): void {
@@ -174,7 +177,11 @@ export class GameEngine {
   }
 
   private async runAITick(): Promise<void> {
-    if (!this.running || !this.client.state.authenticated) return;
+    if (!this.running) return;
+    if (!this.client.state.authenticated) {
+      this.log('system', 'Waiting for authentication...');
+      return;
+    }
 
     try {
       this.callbacks.onThinking(true);
