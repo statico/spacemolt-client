@@ -97,6 +97,13 @@ export class GameEngine {
 
     this.client.on<ErrorPayload>('error', (data) => {
       this.log('error', `${data.code}: ${data.message}`);
+
+      // Handle already_authenticated - we're logged in but need to fetch state
+      if (data.code === 'already_authenticated') {
+        this.client.state.authenticated = true;
+        this.client.getStatus();
+        this.startAILoop();
+      }
     });
 
     this.client.on<StateUpdatePayload>('state_update', (data) => {
