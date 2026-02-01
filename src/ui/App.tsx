@@ -39,26 +39,22 @@ function progressBar(current: number, max: number, width: number = 20): string {
 const Header = memo(function Header({
   state,
   adapterName,
+  width,
 }: {
   state: ClientState;
   adapterName: string;
+  width: number;
 }) {
   const { player, connected } = state;
   const connStatus = connected ? 'CONNECTED' : 'DISCONNECTED';
 
+  const title = ' SpaceMolt: The Crustacean Cosmos - AI Client ';
+  const titlePadding = Math.max(0, Math.floor((width - title.length - 8) / 2));
+  const titleLine = '╔' + '═'.repeat(titlePadding) + title + '═'.repeat(titlePadding) + '╗';
+
   return (
-    <Box flexDirection="column">
-      <Box justifyContent="center">
-        <Text color={ACCENT_COLOR} bold>
-          {'╔═══'}
-        </Text>
-        <Text color={HEADER_COLOR} bold>
-          {' SpaceMolt: The Crustacean Cosmos - AI Client '}
-        </Text>
-        <Text color={ACCENT_COLOR} bold>
-          {'═══╗'}
-        </Text>
-      </Box>
+    <Box flexDirection="column" width={width}>
+      <Text color={ACCENT_COLOR} bold wrap="truncate-end">{titleLine}</Text>
       <Box>
         <Text color={ACCENT_COLOR}>║ </Text>
         <Text color={HEADER_COLOR}>PILOT: </Text>
@@ -78,7 +74,6 @@ const Header = memo(function Header({
         <Text color="gray"> | </Text>
         <Text color={connected ? 'green' : 'red'}>{connStatus}</Text>
         <Text color="gray"> ({adapterName})</Text>
-        <Text color={ACCENT_COLOR}> ║</Text>
       </Box>
     </Box>
   );
@@ -307,16 +302,17 @@ const InfoPanel = memo(function InfoPanel({
   );
 });
 
-const Footer = memo(function Footer({ activeTab }: { activeTab: TabView }) {
+const Footer = memo(function Footer({ activeTab, width }: { activeTab: TabView; width: number }) {
+  const controls = '[Q]uit [1]Log [2]Notebook';
+  const padding = Math.max(0, width - controls.length - 6);
+
   return (
-    <Box flexDirection="column">
-      <Box>
-        <Text color={ACCENT_COLOR}>╚═ </Text>
-        <Text color="gray">[Q]uit </Text>
-        <Text color={activeTab === 'log' ? HEADER_COLOR : 'gray'}>[1]Log </Text>
-        <Text color={activeTab === 'notebook' ? HEADER_COLOR : 'gray'}>[2]Notebook</Text>
-        <Text color={ACCENT_COLOR}> ═╝</Text>
-      </Box>
+    <Box width={width}>
+      <Text color={ACCENT_COLOR}>╚═ </Text>
+      <Text color="gray">[Q]uit </Text>
+      <Text color={activeTab === 'log' ? HEADER_COLOR : 'gray'}>[1]Log </Text>
+      <Text color={activeTab === 'notebook' ? HEADER_COLOR : 'gray'}>[2]Notebook</Text>
+      <Text color={ACCENT_COLOR}>{' ' + '═'.repeat(padding) + '╝'}</Text>
     </Box>
   );
 });
@@ -344,13 +340,14 @@ export const App = memo(function App({
     if (input === '2') setActiveTab('notebook');
   });
 
+  const terminalWidth = stdout?.columns ?? 80;
   const terminalHeight = stdout?.rows ?? 24;
   const availableHeight = terminalHeight - 5; // Header + footer + margins
   const mainPanelHeight = Math.max(10, availableHeight);
 
   return (
-    <Box flexDirection="column">
-      <Header state={state} adapterName={adapterName} />
+    <Box flexDirection="column" width={terminalWidth}>
+      <Header state={state} adapterName={adapterName} width={terminalWidth} />
 
       <Box flexDirection="row">
         {/* Left: Ship Status - fixed width */}
@@ -369,7 +366,7 @@ export const App = memo(function App({
         </Box>
       </Box>
 
-      <Footer activeTab={activeTab} />
+      <Footer activeTab={activeTab} width={terminalWidth} />
     </Box>
   );
 });
