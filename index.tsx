@@ -95,6 +95,7 @@ function GameScreen({
       state={state}
       strategy={playStyle}
       adapterName={engine?.adapterName ?? adapterType}
+      modelName={modelOverride}
       currentAction={currentAction}
       thinking={thinking}
       logs={logs}
