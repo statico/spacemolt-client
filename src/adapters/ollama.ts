@@ -55,10 +55,12 @@ export class OllamaAdapter implements LLMAdapter {
 
       const data = await response.json() as { message?: { content?: string } };
       const content = data.message?.content || '';
-
+      if (!content) {
+        void logError('ollama', `Empty response from model ${this.model}`);
+      }
       return parseActionResponse(content);
     } catch (err) {
-      void logError('ollama', err);
+      void logError('ollama', `Model: ${this.model}, Error: ${err}`);
       return { command: 'status', reasoning: 'LLM error, checking status' };
     } finally {
       clearTimeout(timeoutId);

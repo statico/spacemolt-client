@@ -51,9 +51,12 @@ export class GroqAdapter implements LLMAdapter {
       });
 
       const content = response.choices[0]?.message?.content || '';
+      if (!content) {
+        void logError('groq', `Empty response from model ${this.model}`);
+      }
       return parseActionResponse(content);
     } catch (err) {
-      void logError('groq', err);
+      void logError('groq', `Model: ${this.model}, Error: ${err}`);
       return { command: 'status', reasoning: 'LLM error, checking status' };
     }
   }
