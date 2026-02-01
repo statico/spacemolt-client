@@ -247,4 +247,4 @@ function Root() {
 
 // Start the app
 console.clear();
-render(<Root />);
+render(<Root />, { incrementalRendering: true });

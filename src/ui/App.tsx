@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import type { ClientState } from '../client';
-import type { GameAction, ChatMessage } from '../types';
+import type { GameAction } from '../types';
 
 interface LogEntry {
   timestamp: Date;
@@ -20,20 +20,7 @@ interface AppProps {
   onQuit: () => void;
 }
 
-const CYBER_CHARS = ['>', '|', '/', '-', '\\', '|'];
-
-function CyberBorder({ char = '>' }: { char?: string }) {
-  return <Text color="cyan">{char}</Text>;
-}
-
 function Header({ version, tick }: { version?: string; tick: number }) {
-  const [frame, setFrame] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => setFrame((f) => (f + 1) % CYBER_CHARS.length), 150);
-    return () => clearInterval(timer);
-  }, []);
-
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Box>
@@ -126,7 +113,9 @@ function StatusPanel({ state, strategy, adapterName }: { state: ClientState; str
 }
 
 function NearbyPanel({ nearby }: { nearby: ClientState['nearby'] }) {
-  if (nearby.length === 0) {
+  const players = nearby || [];
+
+  if (players.length === 0) {
     return (
       <Box borderStyle="single" borderColor="gray" paddingX={1}>
         <Text color="gray">No contacts in range</Text>
@@ -137,9 +126,9 @@ function NearbyPanel({ nearby }: { nearby: ClientState['nearby'] }) {
   return (
     <Box flexDirection="column" borderStyle="single" borderColor="cyan" paddingX={1}>
       <Text color="cyan" bold>
-        NEARBY [{nearby.length}]
+        NEARBY [{players.length}]
       </Text>
-      {nearby.slice(0, 5).map((p, i) => (
+      {players.slice(0, 5).map((p, i) => (
         <Box key={i}>
           <Text color={p.in_combat ? 'red' : 'white'}>
             {p.anonymous ? '[ANON]' : p.username || 'Unknown'}
@@ -149,7 +138,7 @@ function NearbyPanel({ nearby }: { nearby: ClientState['nearby'] }) {
           {p.in_combat && <Text color="red"> *</Text>}
         </Box>
       ))}
-      {nearby.length > 5 && <Text color="gray">...and {nearby.length - 5} more</Text>}
+      {players.length > 5 && <Text color="gray">...and {players.length - 5} more</Text>}
     </Box>
   );
 }
