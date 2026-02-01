@@ -68,10 +68,18 @@ export class GameEngine {
       }
       this.callbacks.onStateChange(this.client.state);
 
-      // Auto-login if we have credentials
+      // Auto-login or re-register if we have credentials
       if (this.credentials) {
-        this.log('system', `Auto-logging in as ${this.credentials.username}...`);
-        this.client.login(this.credentials.username, this.credentials.token);
+        if (this.credentials.token) {
+          this.log('system', `Auto-logging in as ${this.credentials.username}...`);
+          this.client.login(this.credentials.username, this.credentials.token);
+        } else {
+          this.log('system', `Re-registering as ${this.credentials.username}...`);
+          this.client.register(this.credentials.username, this.credentials.empire as EmpireID);
+        }
+        // Start AI loop so we recover after reconnect even if server sends
+        // state_update before logged_in; runAITick no-ops until authenticated
+        this.startAILoop();
       }
     });
 
@@ -103,6 +111,23 @@ export class GameEngine {
         this.client.state.authenticated = true;
         this.client.getStatus();
         this.startAILoop();
+        return;
+      }
+
+      // Username already registered: we tried register() but this account exists.
+      // Either we're missing the token (saved too early / file lost) or we should have used login.
+      if (data.code === 'username_taken') {
+        const hasToken = !!(this.credentials?.token?.trim());
+        if (!hasToken) {
+          this.log(
+            'system',
+            'This username is already registered but no token is saved. ' +
+              'Add your token to .spacemolt-credentials.json (key "token") to sign in, ' +
+              'or delete that file and restart to register a new character.'
+          );
+        } else {
+          this.log('system', 'Username already registered; server rejected login. Check your token in .spacemolt-credentials.json.');
+        }
       }
     });
 
@@ -159,6 +184,7 @@ export class GameEngine {
 
   async registerNewPlayer(username: string, empire: EmpireID, playStyle: string): Promise<void> {
     this.credentials = { username, token: '', empire, playStyle };
+    await saveCredentials(this.credentials);
     this.client.register(username, empire);
   }
 

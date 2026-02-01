@@ -26,9 +26,14 @@ export class OllamaAdapter implements LLMAdapter {
     const systemPrompt = buildSystemPrompt(strategy);
     const userPrompt = buildStatePrompt(state, recentEvents, notes);
 
+    const controller = new AbortController();
+    const timeoutMs = 90_000; // 90s so we don't hang on "Thinking..."
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
       const response = await fetch(`${this.baseUrl}/api/chat`, {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: this.model,
@@ -54,6 +59,8 @@ export class OllamaAdapter implements LLMAdapter {
     } catch (error) {
       console.error('Ollama error:', error);
       return { command: 'status', reasoning: 'LLM error, checking status' };
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

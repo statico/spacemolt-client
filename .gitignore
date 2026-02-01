@@ -1,14 +1,12 @@
 # Dependencies
 node_modules/
 
-# Bun
-bun.lock
-
 # Build outputs
 dist/
 
 # Local files
 .spacemolt-credentials.json
+.spacemolt-playstyle
 spacemolt-journal.md
 spacemolt-notes.md
 spacemolt-map.md

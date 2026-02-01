@@ -10,7 +10,7 @@ import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
 import { App, type LogEntry } from './src/ui/App';
 import { GameEngine } from './src/engine';
-import { loadCredentials, saveCredentials, type Credentials } from './src/storage';
+import { loadCredentials, saveCredentials, savePlayStyle, loadPlayStyle, type Credentials } from './src/storage';
 import type { ClientState } from './src/client';
 import type { GameAction, EmpireID } from './src/types';
 import { type AdapterType, createAdapter } from './src/adapters';
@@ -21,9 +21,9 @@ let adapterType: AdapterType = 'ollama';
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--adapter' || args[i] === '-a') {
-    const type = args[i + 1] as AdapterType;
-    if (['ollama', 'claude', 'openai', 'gemini'].includes(type)) {
-      adapterType = type;
+    const type = args[i + 1];
+    if (type && ['ollama', 'claude', 'openai', 'gemini'].includes(type)) {
+      adapterType = type as AdapterType;
     }
   }
 }
@@ -36,7 +36,15 @@ function StartupScreen({ onStart }: { onStart: (playStyle: string, credentials: 
   const { exit } = useApp();
 
   useEffect(() => {
-    loadCredentials().then((creds) => {
+    loadCredentials().then(async (creds) => {
+      // If we have creds but playStyle is missing, try loading from dedicated file (e.g. saved before registration completed)
+      if (creds && !creds.playStyle) {
+        const savedStyle = await loadPlayStyle();
+        if (savedStyle) {
+          creds = { ...creds, playStyle: savedStyle };
+          await saveCredentials(creds);
+        }
+      }
       if (creds && creds.playStyle) {
         // Existing player with saved play style - start immediately
         onStart(creds.playStyle, creds, null);
@@ -45,7 +53,9 @@ function StartupScreen({ onStart }: { onStart: (playStyle: string, credentials: 
         setExistingCredentials(creds);
         setPhase('playstyle');
       } else {
-        // New player - ask for play style
+        // New player - ask for play style (optionally pre-fill from last time)
+        const savedStyle = await loadPlayStyle();
+        if (savedStyle) setPlayStyle(savedStyle);
         setPhase('playstyle');
       }
     });
@@ -60,24 +70,27 @@ function StartupScreen({ onStart }: { onStart: (playStyle: string, credentials: 
   const handlePlayStyleSubmit = async () => {
     if (!playStyle.trim()) return;
 
+    // Save play style immediately so we never forget it (before any async work)
+    await savePlayStyle(playStyle.trim());
+
     if (existingCredentials) {
       // Update existing credentials with playStyle
-      const updatedCreds: Credentials = { ...existingCredentials, playStyle };
+      const updatedCreds: Credentials = { ...existingCredentials, playStyle: playStyle.trim() };
       await saveCredentials(updatedCreds);
-      onStart(playStyle, updatedCreds, null);
+      onStart(playStyle.trim(), updatedCreds, null);
     } else {
       // New player - generate username and empire with LLM
       setPhase('generating');
 
       try {
         const adapter = createAdapter(adapterType);
-        const identity = await adapter.generateIdentity(playStyle);
-        onStart(playStyle, null, { username: identity.username, empire: identity.empire });
+        const identity = await adapter.generateIdentity(playStyle.trim());
+        onStart(playStyle.trim(), null, { username: identity.username, empire: identity.empire });
       } catch (error) {
         console.error('Failed to generate identity:', error);
         // Fallback
         const fallbackName = `Pilot${Math.floor(Math.random() * 10000)}`;
-        onStart(playStyle, null, { username: fallbackName, empire: 'outerrim' });
+        onStart(playStyle.trim(), null, { username: fallbackName, empire: 'outerrim' });
       }
     }
   };

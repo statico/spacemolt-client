@@ -1,6 +1,7 @@
 import { existsSync } from 'fs';
 
 const CREDENTIALS_FILE = '.spacemolt-credentials.json';
+const PLAY_STYLE_FILE = '.spacemolt-playstyle';
 const JOURNAL_FILE = 'spacemolt-journal.md';
 const NOTES_FILE = 'spacemolt-notes.md';
 const MAP_FILE = 'spacemolt-map.md';
@@ -19,20 +20,50 @@ export interface StoredData {
   map: string;
 }
 
+const VALID_EMPIRES = ['solarian', 'voidborn', 'crimson', 'nebula', 'outerrim'] as const;
+
 export async function loadCredentials(): Promise<Credentials | null> {
   try {
     const file = Bun.file(CREDENTIALS_FILE);
     if (await file.exists()) {
-      return await file.json();
+      const data = (await file.json()) as Record<string, unknown>;
+      const empire = typeof data.empire === 'string' && VALID_EMPIRES.includes(data.empire as (typeof VALID_EMPIRES)[number])
+        ? data.empire
+        : 'outerrim';
+      return {
+        username: typeof data.username === 'string' ? data.username : '',
+        token: typeof data.token === 'string' ? data.token : '',
+        empire,
+        playStyle: typeof data.playStyle === 'string' ? data.playStyle : '',
+      } as Credentials;
     }
-  } catch {
-    // No credentials saved
+  } catch (err) {
+    console.error('[SpaceMolt] Failed to load credentials:', err);
   }
   return null;
 }
 
 export async function saveCredentials(credentials: Credentials): Promise<void> {
   await Bun.write(CREDENTIALS_FILE, JSON.stringify(credentials, null, 2));
+}
+
+/** Save play style as soon as user enters it (before registration or other async work). */
+export async function savePlayStyle(playStyle: string): Promise<void> {
+  if (!playStyle.trim()) return;
+  await Bun.write(PLAY_STYLE_FILE, playStyle.trim());
+}
+
+export async function loadPlayStyle(): Promise<string | null> {
+  try {
+    const file = Bun.file(PLAY_STYLE_FILE);
+    if (await file.exists()) {
+      const text = await file.text();
+      return text.trim() || null;
+    }
+  } catch {
+    // No play style saved
+  }
+  return null;
 }
 
 export async function loadJournal(): Promise<string> {

@@ -35,9 +35,9 @@ export class GeminiAdapter implements LLMAdapter {
       });
 
       const result = await model.generateContent(userPrompt);
-      const content = result.response.text();
+      const content = result.response?.text?.() ?? '';
 
-      return parseActionResponse(content);
+      return parseActionResponse(content || '{}');
     } catch (error) {
       console.error('Gemini error:', error);
       return { command: 'status', reasoning: 'LLM error, checking status' };
@@ -50,7 +50,8 @@ export class GeminiAdapter implements LLMAdapter {
     try {
       const model = this.client.getGenerativeModel({ model: this.model });
       const result = await model.generateContent(prompt);
-      return parseIdentityResponse(result.response.text());
+      const text = result.response?.text?.() ?? '';
+      return parseIdentityResponse(text);
     } catch (error) {
       console.error('Gemini identity error:', error);
       return parseIdentityResponse('');

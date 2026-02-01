@@ -427,22 +427,49 @@ export class SpaceMoltClient {
 
   // Execute a command string (for LLM-generated actions)
   executeCommand(command: string, args: string[] = []): void {
+    const arg0 = args[0]?.trim();
+    const quantity = Math.max(0, parseInt(args[1], 10) || 1);
+
     switch (command) {
-      case 'travel': this.travel(args[0]); break;
-      case 'jump': this.jump(args[0]); break;
+      case 'travel':
+        if (arg0) this.travel(arg0);
+        else this.log('Unknown command:', 'travel requires target_poi');
+        break;
+      case 'jump':
+        if (arg0) this.jump(arg0);
+        else this.log('Unknown command:', 'jump requires target_system');
+        break;
       case 'dock': this.dock(); break;
       case 'undock': this.undock(); break;
       case 'mine': this.mine(); break;
-      case 'attack': this.attack(args[0]); break;
-      case 'scan': this.scan(args[0]); break;
-      case 'buy': this.buy(args[0], parseInt(args[1])); break;
-      case 'sell': this.sell(args[0], parseInt(args[1])); break;
+      case 'attack':
+        if (arg0) this.attack(arg0);
+        else this.log('Unknown command:', 'attack requires target_id');
+        break;
+      case 'scan':
+        if (arg0) this.scan(arg0);
+        else this.log('Unknown command:', 'scan requires target_id');
+        break;
+      case 'buy':
+        if (arg0) this.buy(arg0, quantity);
+        else this.log('Unknown command:', 'buy requires listing_id');
+        break;
+      case 'sell':
+        if (arg0) this.sell(arg0, quantity);
+        else this.log('Unknown command:', 'sell requires item_id');
+        break;
       case 'refuel': this.refuel(); break;
       case 'repair': this.repair(); break;
-      case 'craft': this.craft(args[0]); break;
+      case 'craft':
+        if (arg0) this.craft(arg0);
+        else this.log('Unknown command:', 'craft requires recipe_id');
+        break;
       case 'say': this.localChat(args.join(' ')); break;
       case 'faction': this.factionChat(args.join(' ')); break;
-      case 'msg': this.privateMessage(args[0], args.slice(1).join(' ')); break;
+      case 'msg':
+        if (args.length >= 2 && arg0) this.privateMessage(arg0, args.slice(1).join(' '));
+        else this.log('Unknown command:', 'msg requires target_id and message');
+        break;
       case 'status': this.getStatus(); break;
       case 'system': this.getSystem(); break;
       case 'poi': this.getPOI(); break;

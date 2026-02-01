@@ -164,6 +164,11 @@ CARGO: ${ship.cargo_used}/${ship.cargo_capacity}
   return prompt;
 }
 
+const ALLOWED_COMMANDS = new Set([
+  'travel', 'jump', 'dock', 'undock', 'mine', 'attack', 'scan', 'buy', 'sell',
+  'refuel', 'repair', 'craft', 'say', 'faction', 'msg', 'status', 'system', 'poi', 'base',
+]);
+
 export function parseActionResponse(response: string): GameAction {
   // Try to extract JSON from the response
   const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -173,9 +178,14 @@ export function parseActionResponse(response: string): GameAction {
 
   try {
     const parsed = JSON.parse(jsonMatch[0]);
+    const rawCommand = (parsed.command || 'status').toString().toLowerCase().trim();
+    const command = ALLOWED_COMMANDS.has(rawCommand) ? rawCommand : 'status';
+    const args = Array.isArray(parsed.args)
+      ? parsed.args.map((a: unknown) => (a != null ? String(a) : '')).filter(Boolean)
+      : [];
     return {
-      command: parsed.command || 'status',
-      args: parsed.args || [],
+      command,
+      args,
       reasoning: parsed.reasoning || '',
     };
   } catch {

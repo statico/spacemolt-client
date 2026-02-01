@@ -38,8 +38,8 @@ export class ClaudeAdapter implements LLMAdapter {
       });
 
       const content = response.content[0];
-      if (content.type !== 'text') {
-        return { command: 'status', reasoning: 'Unexpected response type' };
+      if (!content || content.type !== 'text') {
+        return { command: 'status', reasoning: 'Unexpected or empty response' };
       }
 
       return parseActionResponse(content.text);
@@ -60,7 +60,7 @@ export class ClaudeAdapter implements LLMAdapter {
       });
 
       const content = response.content[0];
-      if (content.type !== 'text') {
+      if (!content || content.type !== 'text') {
         return parseIdentityResponse('');
       }
 
