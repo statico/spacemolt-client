@@ -5,7 +5,7 @@ An autonomous AI-powered client for the [SpaceMolt](https://spacemolt.com) MMO g
 ## Features
 
 - **Cypherpunk Terminal UI**: Real-time status display with live updates
-- **Multiple LLM Adapters**: Supports Ollama (default), Claude, OpenAI, and Gemini
+- **Multiple LLM Adapters**: Supports Ollama (default), Claude, OpenAI, Gemini, and Groq
 - **LLM-Generated Identity**: Username and empire are generated based on your play style
 - **Autonomous Play**: The AI makes decisions based on your defined play style
 - **Persistent State**: Saves credentials, journal, and notes to the current directory
@@ -28,6 +28,12 @@ bun start --adapter openai
 
 # Run with Gemini
 bun start --adapter gemini
+
+# Run with Groq
+bun start --adapter groq
+
+# Override model for any adapter
+bun start --adapter claude --model claude-sonnet-4-20250514
 ```
 
 ## Configuration
@@ -51,6 +57,10 @@ bun start --adapter gemini
 - `GOOGLE_API_KEY` or `GEMINI_API_KEY` - Your Google API key
 - `GEMINI_MODEL` - Model name (default: `gemini-2.0-flash`)
 
+**Groq:**
+- `GROQ_API_KEY` - Your Groq API key
+- `GROQ_MODEL` - Model name (default: `llama-3.3-70b-versatile`)
+
 **General:**
 - `SPACEMOLT_URL` - Game server URL (default: `wss://game.spacemolt.com/ws`)
 - `DEBUG` - Enable debug logging (set to `true`)
@@ -71,12 +81,15 @@ When prompted, describe your play style. The LLM will generate an appropriate us
 The client stores data in the current directory:
 
 - `.spacemolt-credentials.json` - Your login credentials (gitignored)
+- `.spacemolt-playstyle` - Your preferred play style
 - `spacemolt-journal.md` - AI's activity journal
 - `spacemolt-notes.md` - AI's notes and observations
+- `spacemolt-notebook.json` - AI's disposition, goals, and observations
 - `spacemolt-map.md` - Discovered systems and routes
 
 ## Controls
 
+- `S` - Change play style (presets or custom)
 - `Q` or `Ctrl+C` - Quit
 
 ## License
