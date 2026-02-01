@@ -10,7 +10,7 @@ import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
 import { App, type LogEntry } from './src/ui/App';
 import { GameEngine } from './src/engine';
-import { loadCredentials, type Credentials } from './src/storage';
+import { loadCredentials, saveCredentials, type Credentials } from './src/storage';
 import type { ClientState } from './src/client';
 import type { GameAction, EmpireID } from './src/types';
 import { type AdapterType, createAdapter } from './src/adapters';
@@ -31,6 +31,7 @@ for (let i = 0; i < args.length; i++) {
 // Startup screen - only asks for play style on first run
 function StartupScreen({ onStart }: { onStart: (playStyle: string, credentials: Credentials | null, newPlayer: { username: string; empire: EmpireID } | null) => void }) {
   const [phase, setPhase] = useState<'loading' | 'playstyle' | 'generating'>('loading');
+  const [existingCredentials, setExistingCredentials] = useState<Credentials | null>(null);
   const [playStyle, setPlayStyle] = useState('');
   const { exit } = useApp();
 
@@ -39,6 +40,10 @@ function StartupScreen({ onStart }: { onStart: (playStyle: string, credentials: 
       if (creds && creds.playStyle) {
         // Existing player with saved play style - start immediately
         onStart(creds.playStyle, creds, null);
+      } else if (creds && creds.token) {
+        // Existing player but missing playStyle - ask for it once
+        setExistingCredentials(creds);
+        setPhase('playstyle');
       } else {
         // New player - ask for play style
         setPhase('playstyle');
@@ -55,18 +60,25 @@ function StartupScreen({ onStart }: { onStart: (playStyle: string, credentials: 
   const handlePlayStyleSubmit = async () => {
     if (!playStyle.trim()) return;
 
-    // New player - generate username and empire with LLM
-    setPhase('generating');
+    if (existingCredentials) {
+      // Update existing credentials with playStyle
+      const updatedCreds: Credentials = { ...existingCredentials, playStyle };
+      await saveCredentials(updatedCreds);
+      onStart(playStyle, updatedCreds, null);
+    } else {
+      // New player - generate username and empire with LLM
+      setPhase('generating');
 
-    try {
-      const adapter = createAdapter(adapterType);
-      const identity = await adapter.generateIdentity(playStyle);
-      onStart(playStyle, null, { username: identity.username, empire: identity.empire });
-    } catch (error) {
-      console.error('Failed to generate identity:', error);
-      // Fallback
-      const fallbackName = `Pilot${Math.floor(Math.random() * 10000)}`;
-      onStart(playStyle, null, { username: fallbackName, empire: 'outerrim' });
+      try {
+        const adapter = createAdapter(adapterType);
+        const identity = await adapter.generateIdentity(playStyle);
+        onStart(playStyle, null, { username: identity.username, empire: identity.empire });
+      } catch (error) {
+        console.error('Failed to generate identity:', error);
+        // Fallback
+        const fallbackName = `Pilot${Math.floor(Math.random() * 10000)}`;
+        onStart(playStyle, null, { username: fallbackName, empire: 'outerrim' });
+      }
     }
   };
 
@@ -112,9 +124,17 @@ function StartupScreen({ onStart }: { onStart: (playStyle: string, credentials: 
         <Text color="green" bold>{adapterType.toUpperCase()}</Text>
       </Box>
 
-      <Box marginBottom={1}>
-        <Text color="cyan">New pilot - identity will be generated based on your play style</Text>
-      </Box>
+      {existingCredentials ? (
+        <Box marginBottom={1}>
+          <Text color="green">
+            Welcome back, <Text bold>{existingCredentials.username}</Text>! One-time setup:
+          </Text>
+        </Box>
+      ) : (
+        <Box marginBottom={1}>
+          <Text color="cyan">New pilot - identity will be generated based on your play style</Text>
+        </Box>
+      )}
 
       <Box flexDirection="column">
         <Text color="cyan" bold>
