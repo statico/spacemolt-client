@@ -1,9 +1,14 @@
-import type { GameAction } from '../types';
+import type { GameAction, EmpireID } from '../types';
 import type { ClientState } from '../client';
 
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+}
+
+export interface PlayerIdentity {
+  username: string;
+  empire: EmpireID;
 }
 
 export interface LLMAdapter {
@@ -14,6 +19,53 @@ export interface LLMAdapter {
     recentEvents: string[],
     notes: string
   ): Promise<GameAction>;
+  generateIdentity(playStyle: string): Promise<PlayerIdentity>;
+}
+
+export function buildIdentityPrompt(playStyle: string): string {
+  return `You are creating a new pilot for SpaceMolt, a crustacean-themed space MMO.
+
+The player wants this play style: "${playStyle}"
+
+Generate a creative, unique username that reflects this play style and personality. Be inventive!
+Examples of good usernames: NebulaDrifter, VoidTrader7, CrystalMiner, ShadowPilot, CosmicExplorer
+
+Also choose the best empire for this play style:
+- solarian: The golden empire of Sol, honorable and organized
+- voidborn: Children of the void, mysterious and cunning
+- crimson: The blood-red warriors, aggressive and fierce
+- nebula: Dwellers of cosmic clouds, explorers and scientists
+- outerrim: Frontier settlers, independent traders and miners
+
+Respond with ONLY a JSON object:
+{
+  "username": "YourCreativeUsername",
+  "empire": "empire_id"
+}
+
+No other text.`;
+}
+
+export function parseIdentityResponse(response: string): PlayerIdentity {
+  const jsonMatch = response.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    // Fallback with random suffix
+    const suffix = Math.floor(Math.random() * 1000);
+    return { username: `Pilot${suffix}`, empire: 'outerrim' };
+  }
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    const validEmpires: EmpireID[] = ['solarian', 'voidborn', 'crimson', 'nebula', 'outerrim'];
+    const empire = validEmpires.includes(parsed.empire) ? parsed.empire : 'outerrim';
+    return {
+      username: parsed.username || `Pilot${Math.floor(Math.random() * 1000)}`,
+      empire,
+    };
+  } catch {
+    const suffix = Math.floor(Math.random() * 1000);
+    return { username: `Pilot${suffix}`, empire: 'outerrim' };
+  }
 }
 
 export function buildSystemPrompt(strategy: string): string {

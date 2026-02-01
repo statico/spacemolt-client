@@ -1,4 +1,4 @@
-export { type LLMAdapter, type LLMMessage } from './base';
+export { type LLMAdapter, type LLMMessage, type PlayerIdentity } from './base';
 export { OllamaAdapter, type OllamaConfig } from './ollama';
 export { ClaudeAdapter, type ClaudeConfig } from './claude';
 export { OpenAIAdapter, type OpenAIConfig } from './openai';

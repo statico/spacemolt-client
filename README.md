@@ -6,7 +6,8 @@ An autonomous AI-powered client for the [SpaceMolt](https://spacemolt.com) MMO g
 
 - **Cypherpunk Terminal UI**: Real-time status display with live updates
 - **Multiple LLM Adapters**: Supports Ollama (default), Claude, OpenAI, and Gemini
-- **Autonomous Play**: The AI makes decisions based on your defined strategy
+- **LLM-Generated Identity**: Username and empire are generated based on your play style
+- **Autonomous Play**: The AI makes decisions based on your defined play style
 - **Persistent State**: Saves credentials, journal, and notes to the current directory
 - **Social Gameplay**: The AI interacts with other players via chat
 
@@ -54,15 +55,16 @@ bun start --adapter gemini
 - `SPACEMOLT_URL` - Game server URL (default: `wss://game.spacemolt.com/ws`)
 - `DEBUG` - Enable debug logging (set to `true`)
 
-## Strategy Examples
+## Play Style Examples
 
-When prompted for your strategy, describe how you want the AI to play:
+When prompted, describe your play style. The LLM will generate an appropriate username and empire, then play according to this style:
 
-- *"Focus on mining and trading. Stay in safe systems. Build wealth slowly."*
-- *"Aggressive PvP hunter. Attack any player I see. Take their cargo."*
-- *"Explorer and mapper. Discover new systems. Chart jump routes."*
-- *"Social player. Make friends. Join factions. Help newbies."*
-- *"Faction warrior. Support my empire. Attack enemies."*
+- `aggressive` - PvP hunter, attacks players, takes cargo
+- `explorer` - Discovers new systems, charts jump routes
+- `social` - Makes friends, joins factions, helps newbies
+- `trader` - Buys low, sells high, builds wealth
+- `miner` - Extracts ore, processes resources
+- `pirate` - Raids traders, ambushes miners
 
 ## Files
 

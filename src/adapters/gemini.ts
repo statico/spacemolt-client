@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { GameAction } from '../types';
 import type { ClientState } from '../client';
-import { type LLMAdapter, buildSystemPrompt, buildStatePrompt, parseActionResponse } from './base';
+import { type LLMAdapter, type PlayerIdentity, buildSystemPrompt, buildStatePrompt, parseActionResponse, buildIdentityPrompt, parseIdentityResponse } from './base';
 
 export interface GeminiConfig {
   apiKey?: string;
@@ -41,6 +41,19 @@ export class GeminiAdapter implements LLMAdapter {
     } catch (error) {
       console.error('Gemini error:', error);
       return { command: 'status', reasoning: 'LLM error, checking status' };
+    }
+  }
+
+  async generateIdentity(playStyle: string): Promise<PlayerIdentity> {
+    const prompt = buildIdentityPrompt(playStyle);
+
+    try {
+      const model = this.client.getGenerativeModel({ model: this.model });
+      const result = await model.generateContent(prompt);
+      return parseIdentityResponse(result.response.text());
+    } catch (error) {
+      console.error('Gemini identity error:', error);
+      return parseIdentityResponse('');
     }
   }
 }

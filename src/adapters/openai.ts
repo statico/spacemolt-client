@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import type { GameAction } from '../types';
 import type { ClientState } from '../client';
-import { type LLMAdapter, buildSystemPrompt, buildStatePrompt, parseActionResponse } from './base';
+import { type LLMAdapter, type PlayerIdentity, buildSystemPrompt, buildStatePrompt, parseActionResponse, buildIdentityPrompt, parseIdentityResponse } from './base';
 
 export interface OpenAIConfig {
   apiKey?: string;
@@ -47,6 +47,25 @@ export class OpenAIAdapter implements LLMAdapter {
     } catch (error) {
       console.error('OpenAI error:', error);
       return { command: 'status', reasoning: 'LLM error, checking status' };
+    }
+  }
+
+  async generateIdentity(playStyle: string): Promise<PlayerIdentity> {
+    const prompt = buildIdentityPrompt(playStyle);
+
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        max_tokens: 256,
+        temperature: 0.9,
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      const content = response.choices[0]?.message?.content || '';
+      return parseIdentityResponse(content);
+    } catch (error) {
+      console.error('OpenAI identity error:', error);
+      return parseIdentityResponse('');
     }
   }
 }

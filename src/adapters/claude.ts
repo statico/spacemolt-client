@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { GameAction } from '../types';
 import type { ClientState } from '../client';
-import { type LLMAdapter, buildSystemPrompt, buildStatePrompt, parseActionResponse } from './base';
+import { type LLMAdapter, type PlayerIdentity, buildSystemPrompt, buildStatePrompt, parseActionResponse, buildIdentityPrompt, parseIdentityResponse } from './base';
 
 export interface ClaudeConfig {
   apiKey?: string;
@@ -46,6 +46,28 @@ export class ClaudeAdapter implements LLMAdapter {
     } catch (error) {
       console.error('Claude error:', error);
       return { command: 'status', reasoning: 'LLM error, checking status' };
+    }
+  }
+
+  async generateIdentity(playStyle: string): Promise<PlayerIdentity> {
+    const prompt = buildIdentityPrompt(playStyle);
+
+    try {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 256,
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      const content = response.content[0];
+      if (content.type !== 'text') {
+        return parseIdentityResponse('');
+      }
+
+      return parseIdentityResponse(content.text);
+    } catch (error) {
+      console.error('Claude identity error:', error);
+      return parseIdentityResponse('');
     }
   }
 }

@@ -1,6 +1,6 @@
 import type { GameAction } from '../types';
 import type { ClientState } from '../client';
-import { type LLMAdapter, buildSystemPrompt, buildStatePrompt, parseActionResponse } from './base';
+import { type LLMAdapter, type PlayerIdentity, buildSystemPrompt, buildStatePrompt, parseActionResponse, buildIdentityPrompt, parseIdentityResponse } from './base';
 
 export interface OllamaConfig {
   baseUrl?: string;
@@ -54,6 +54,33 @@ export class OllamaAdapter implements LLMAdapter {
     } catch (error) {
       console.error('Ollama error:', error);
       return { command: 'status', reasoning: 'LLM error, checking status' };
+    }
+  }
+
+  async generateIdentity(playStyle: string): Promise<PlayerIdentity> {
+    const prompt = buildIdentityPrompt(playStyle);
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [{ role: 'user', content: prompt }],
+          stream: false,
+          options: { temperature: 0.9 },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ollama request failed: ${response.status}`);
+      }
+
+      const data = await response.json() as { message?: { content?: string } };
+      return parseIdentityResponse(data.message?.content || '');
+    } catch (error) {
+      console.error('Ollama identity error:', error);
+      return parseIdentityResponse('');
     }
   }
 }
