@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState } from 'react';
+import React, { memo, useMemo, useState, useEffect, useCallback } from 'react';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
@@ -193,16 +193,81 @@ const ShipStatusPanel = memo(function ShipStatusPanel({
   );
 });
 
-const LogPanel = memo(function LogPanel({ logs, height, activeTab, notebook }: {
+const LogPanel = memo(function LogPanel({ logs, height, activeTab, notebook, isActive, onScrollModeChange }: {
   logs: LogEntry[];
   height: number;
   activeTab: TabView;
   notebook: Notebook;
+  isActive: boolean;
+  onScrollModeChange?: (scrolling: boolean) => void;
 }) {
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const maxVisible = Math.max(1, height - 4); // Account for border and header
+
+  // Auto-scroll to bottom when new logs arrive (if autoScroll is enabled)
+  useEffect(() => {
+    if (autoScroll && logs.length > 0) {
+      setScrollOffset(Math.max(0, logs.length - maxVisible));
+    }
+  }, [logs.length, autoScroll, maxVisible]);
+
+  // Handle vim-like keyboard navigation
+  useInput((input, key) => {
+    if (!isActive || activeTab !== 'log') return;
+
+    const maxOffset = Math.max(0, logs.length - maxVisible);
+    const halfPage = Math.floor(maxVisible / 2);
+
+    // j or down arrow - scroll down one line
+    if (input === 'j' || key.downArrow) {
+      setAutoScroll(false);
+      onScrollModeChange?.(true);
+      setScrollOffset(prev => Math.min(maxOffset, prev + 1));
+    }
+    // k or up arrow - scroll up one line
+    else if (input === 'k' || key.upArrow) {
+      setAutoScroll(false);
+      onScrollModeChange?.(true);
+      setScrollOffset(prev => Math.max(0, prev - 1));
+    }
+    // Ctrl+d - scroll down half page
+    else if (key.ctrl && input === 'd') {
+      setAutoScroll(false);
+      onScrollModeChange?.(true);
+      setScrollOffset(prev => Math.min(maxOffset, prev + halfPage));
+    }
+    // Ctrl+u - scroll up half page
+    else if (key.ctrl && input === 'u') {
+      setAutoScroll(false);
+      onScrollModeChange?.(true);
+      setScrollOffset(prev => Math.max(0, prev - halfPage));
+    }
+    // g - go to top
+    else if (input === 'g' && !key.ctrl) {
+      setAutoScroll(false);
+      onScrollModeChange?.(true);
+      setScrollOffset(0);
+    }
+    // G - go to bottom and re-enable auto-scroll
+    else if (input === 'G') {
+      setAutoScroll(true);
+      onScrollModeChange?.(false);
+      setScrollOffset(maxOffset);
+    }
+    // Escape or q in scroll mode - return to auto-scroll
+    else if (key.escape) {
+      setAutoScroll(true);
+      onScrollModeChange?.(false);
+      setScrollOffset(maxOffset);
+    }
+  }, { isActive: isActive && activeTab === 'log' });
+
   const visibleLogs = useMemo(() => {
-    const maxLogs = Math.max(1, height - 4);
-    return logs.slice(-maxLogs);
-  }, [logs, height]);
+    const start = scrollOffset;
+    const end = start + maxVisible;
+    return logs.slice(start, end);
+  }, [logs, scrollOffset, maxVisible]);
 
   const getColor = (type: LogEntry['type']) => {
     switch (type) {
@@ -226,6 +291,11 @@ const LogPanel = memo(function LogPanel({ logs, height, activeTab, notebook }: {
     }
   };
 
+  // Scroll indicator
+  const maxOffset = Math.max(0, logs.length - maxVisible);
+  const scrollPct = maxOffset > 0 ? Math.round((scrollOffset / maxOffset) * 100) : 100;
+  const scrollIndicator = !autoScroll ? ` [${scrollPct}%]` : '';
+
   if (activeTab === 'notebook') {
     const hasContent = notebook.disposition || notebook.goals.length > 0 || notebook.notes;
     return (
@@ -246,21 +316,21 @@ const LogPanel = memo(function LogPanel({ logs, height, activeTab, notebook }: {
             {notebook.disposition && (
               <>
                 <Text color={colors.warning} bold>DISPOSITION:</Text>
-                <Text color={colors.bright} wrap="truncate-end">{notebook.disposition}</Text>
+                <Text color={colors.bright} wrap="wrap">{notebook.disposition}</Text>
               </>
             )}
             {notebook.goals.length > 0 && (
               <>
                 <Text color={colors.warning} bold>GOALS:</Text>
                 {notebook.goals.slice(0, 5).map((goal, i) => (
-                  <Text key={i} color={colors.bright} wrap="truncate-end">  {i + 1}. {goal}</Text>
+                  <Text key={i} color={colors.bright} wrap="wrap">  {i + 1}. {goal}</Text>
                 ))}
               </>
             )}
             {notebook.notes && (
               <>
                 <Text color={colors.warning} bold>NOTES:</Text>
-                <Text color={colors.muted} wrap="truncate-end">{notebook.notes}</Text>
+                <Text color={colors.muted} wrap="wrap">{notebook.notes}</Text>
               </>
             )}
           </>
@@ -273,18 +343,18 @@ const LogPanel = memo(function LogPanel({ logs, height, activeTab, notebook }: {
     <Box
       flexDirection="column"
       borderStyle="single"
-      borderColor={colors.border}
+      borderColor={!autoScroll ? colors.accent : colors.border}
       paddingX={1}
       height={height}
       flexGrow={1}
       overflow="hidden"
     >
-      <Text color={colors.accent} bold>═ LOG & COMMS ═</Text>
+      <Text color={colors.accent} bold>═ LOG & COMMS ═{scrollIndicator}</Text>
       {visibleLogs.length === 0 ? (
         <Text color={colors.muted}>No events yet...</Text>
       ) : (
         visibleLogs.map((log, i) => (
-          <Text key={i} wrap="truncate-end">
+          <Text key={scrollOffset + i} wrap="wrap">
             <Text color={getColor(log.type)}>{getPrefix(log.type)} </Text>
             <Text color={colors.bright}>{log.message}</Text>
           </Text>
@@ -418,10 +488,22 @@ const StyleSelector = memo(function StyleSelector({
   );
 });
 
-const Footer = memo(function Footer({ activeTab, width }: { activeTab: TabView; width: number }) {
-  const controls = '[Q]uit [1]Log [2]Notebook [S]tyle';
+const Footer = memo(function Footer({ activeTab, width, isScrolling }: { activeTab: TabView; width: number; isScrolling: boolean }) {
+  const normalControls = '[Q]uit [1]Log [2]Notebook [S]tyle [j/k]Scroll';
+  const scrollControls = 'SCROLL: [j/k]Line [Ctrl+d/u]Page [g/G]Top/Bottom [Esc]Exit';
+  const controls = isScrolling ? scrollControls : normalControls;
   const innerWidth = width - 2;
   const padding = Math.max(0, innerWidth - controls.length - 4);
+
+  if (isScrolling) {
+    return (
+      <Box width={width}>
+        <Text color={colors.accent}>╚═ </Text>
+        <Text color={colors.warning}>{scrollControls}</Text>
+        <Text color={colors.accent}> {'═'.repeat(padding)}╝</Text>
+      </Box>
+    );
+  }
 
   return (
     <Box width={width}>
@@ -429,7 +511,8 @@ const Footer = memo(function Footer({ activeTab, width }: { activeTab: TabView; 
       <Text color={colors.muted}>[Q]uit </Text>
       <Text color={activeTab === 'log' ? colors.accent : colors.muted}>[1]Log </Text>
       <Text color={activeTab === 'notebook' ? colors.accent : colors.muted}>[2]Notebook </Text>
-      <Text color={colors.muted}>[S]tyle</Text>
+      <Text color={colors.muted}>[S]tyle </Text>
+      <Text color={colors.muted}>[j/k]Scroll</Text>
       <Text color={colors.accent}> {'═'.repeat(padding)}╝</Text>
     </Box>
   );
@@ -451,9 +534,14 @@ export const App = memo(function App({
   const { stdout } = useStdout();
   const [activeTab, setActiveTab] = useState<TabView>('log');
   const [showStyleSelector, setShowStyleSelector] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
 
   useInput((input, key) => {
     if (showStyleSelector) return;
+    // Don't handle q/1/2/s when scrolling (except let scroll keys through)
+    if (isScrolling && !['j', 'k', 'g', 'G'].includes(input) && !key.downArrow && !key.upArrow && !(key.ctrl && (input === 'd' || input === 'u')) && !key.escape) {
+      return;
+    }
 
     if (input === 'q' || (key.ctrl && input === 'c')) {
       onQuit();
@@ -461,7 +549,7 @@ export const App = memo(function App({
     }
     if (input === '1') setActiveTab('log');
     if (input === '2') setActiveTab('notebook');
-    if (input === 's') setShowStyleSelector(true);
+    if (input === 's' && !isScrolling) setShowStyleSelector(true);
   });
 
   const handleStyleSelect = (style: string) => {
@@ -495,7 +583,14 @@ export const App = memo(function App({
         </Box>
 
         <Box flexGrow={1} flexDirection="column">
-          <LogPanel logs={logs} height={mainPanelHeight} activeTab={activeTab} notebook={notebook} />
+          <LogPanel
+            logs={logs}
+            height={mainPanelHeight}
+            activeTab={activeTab}
+            notebook={notebook}
+            isActive={!showStyleSelector}
+            onScrollModeChange={setIsScrolling}
+          />
         </Box>
 
         <Box width={28}>
@@ -503,7 +598,7 @@ export const App = memo(function App({
         </Box>
       </Box>
 
-      <Footer activeTab={activeTab} width={terminalWidth} />
+      <Footer activeTab={activeTab} width={terminalWidth} isScrolling={isScrolling} />
     </Box>
   );
 });
