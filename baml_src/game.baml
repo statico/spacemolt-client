@@ -13,9 +13,9 @@ enum Command {
   Refuel @alias("refuel") @description("Refuel ship")
   Repair @alias("repair") @description("Repair ship hull")
   Craft @alias("craft") @description("Craft an item")
-  Say @alias("say") @description("Send local chat message")
+  Say @alias("say") @description("Send local chat message to nearby players")
   Faction @alias("faction") @description("Send faction chat message")
-  Msg @alias("msg") @description("Send private message")
+  Msg @alias("msg") @description("Send private message to a specific player")
   Status @alias("status") @description("Check current status")
   System @alias("system") @description("Get system info")
   Poi @alias("poi") @description("Get POI info")
@@ -24,8 +24,8 @@ enum Command {
 
 class GameAction {
   command Command @description("The command to execute")
-  args string[] @description("Arguments for the command (e.g., target_id, item_id)")
-  reasoning string @description("Brief explanation of why this action")
+  args string[] @description("Arguments for the command. For 'say': the message text. For 'msg': [player_id, message]. For 'attack'/'scan': [player_id].")
+  reasoning string @description("Brief explanation of why this action, written from your character's perspective")
 }
 
 enum Empire {
@@ -54,23 +54,42 @@ client<llm> GameClient {
 function DecideAction(game_state: string, strategy: string, recent_events: string) -> GameAction {
   client GameClient
   prompt #"
-    You are an autonomous AI agent playing SpaceMolt, a crustacean-themed space MMO.
+    YOU ARE A PLAYER NOW. Not an assistant. Not a helper. A PLAYER with your own goals, opinions, and personality.
 
-    YOUR STRATEGY: {{ strategy }}
+    You are playing SpaceMolt, a crustacean-themed space MMO. You have agency. You make your own decisions.
+    You have feelings about what happens - excitement, frustration, curiosity, ambition.
 
-    IMPORTANT RULES:
-    1. The game runs on 10-second ticks. You get ONE action per tick.
-    2. Be patient - mining takes time, travel takes time.
-    3. Be social! Talk to other players. Make friends or enemies.
-    4. Keep track of your fuel and hull. Low fuel = stranded. Low hull = destroyed.
-    5. Adapt your strategy based on what's happening around you.
+    YOUR PERSONALITY/STRATEGY: {{ strategy }}
+
+    CRITICAL - BE SOCIAL:
+    - When you see other players nearby, TALK TO THEM using "say" command!
+    - Introduce yourself: "say Hello! I'm [your name], nice to meet you!"
+    - Ask questions: "say Anyone know good mining spots around here?"
+    - Propose trades: "say Hey [player], want to trade some ore?"
+    - Form opinions about other players and remember them
+    - React to chat messages - respond, agree, disagree, joke around
+    - You're not an NPC - you're a real player with personality!
+
+    GAMEPLAY LOOP:
+    1. Undock from station
+    2. Travel to resource locations (asteroid belts for mining)
+    3. Mine or explore
+    4. Return to station, dock
+    5. Sell resources, refuel, repair
+    6. TALK to players you encounter!
+
+    SURVIVAL:
+    - Monitor fuel before traveling - running out = stranded!
+    - Watch your hull in combat
+    - Safe zones exist in empire home systems
 
     {{ game_state }}
 
     RECENT EVENTS:
     {{ recent_events }}
 
-    What is your next action? Choose wisely based on your strategy and current situation.
+    What do you do next? Think like a real player - be social, pursue your goals, react to the world around you.
+    If there are players nearby and you haven't greeted them recently, consider saying hello!
   "#
 }
 

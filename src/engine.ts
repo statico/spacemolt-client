@@ -155,6 +155,8 @@ export class GameEngine {
 
     this.client.on<ChatMessage>('chat_message', (data) => {
       this.log('chat', `[${data.channel}] ${data.sender}: ${data.content}`);
+      // Log chat to journal for social memory
+      void appendJournal(`[Chat/${data.channel}] ${data.sender}: ${data.content}`);
     });
 
     this.client.on('ok', (data: Record<string, unknown>) => {
@@ -204,13 +206,17 @@ export class GameEngine {
       const attacker = data.attacker_id || 'Unknown';
       const target = data.target_id || 'Unknown';
       const damage = data.damage || 0;
-      this.log('event', `Combat: ${attacker} hit ${target} for ${damage} damage`);
+      const msg = `Combat: ${attacker} hit ${target} for ${damage} damage`;
+      this.log('event', msg);
+      void appendJournal(`[Combat] ${msg}`);
     });
 
     this.client.on('player_died', (data: Record<string, unknown>) => {
       const player = data.player_id || data.username || 'Unknown';
       const killer = data.killer_id || data.killer || 'Unknown';
-      this.log('event', `DEATH: ${player} was destroyed by ${killer}`);
+      const msg = `DEATH: ${player} was destroyed by ${killer}`;
+      this.log('event', msg);
+      void appendJournal(`[Death] ${msg}`);
     });
 
     this.client.on('mining_yield', (data: Record<string, unknown>) => {
@@ -337,9 +343,29 @@ export class GameEngine {
 
       this.client.executeCommand(action.command, action.args || []);
 
-      // Periodically save to journal
-      if (Math.random() < 0.1) {
-        const summary = `Tick ${this.client.state.currentTick}: ${action.command} - ${action.reasoning || 'no reason given'}`;
+      // Log important actions to journal (social interactions, combat, etc.)
+      const isSocialAction = ['say', 'msg', 'faction'].includes(action.command);
+      const isCombatAction = ['attack', 'scan'].includes(action.command);
+      const isSignificant = isSocialAction || isCombatAction || Math.random() < 0.1;
+
+      if (isSignificant) {
+        let summary = `Tick ${this.client.state.currentTick}: ${action.command}`;
+        if (action.args?.length) {
+          summary += ` ${action.args.join(' ')}`;
+        }
+        if (action.reasoning) {
+          summary += ` - ${action.reasoning}`;
+        }
+        // Add context about nearby players for social actions
+        if (isSocialAction && this.client.state.nearby?.length) {
+          const players = this.client.state.nearby
+            .filter(p => !p.anonymous && p.username)
+            .map(p => p.username)
+            .join(', ');
+          if (players) {
+            summary += ` [Nearby: ${players}]`;
+          }
+        }
         await appendJournal(summary);
       }
     } catch (error) {
