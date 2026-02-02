@@ -90,6 +90,11 @@ function DecideAction(game_state: string, strategy: string, recent_events: strin
 
     What do you do next? Think like a real player - be social, pursue your goals, react to the world around you.
     If there are players nearby and you haven't greeted them recently, consider saying hello!
+
+    RESPOND WITH JSON ONLY. Use this exact format:
+    {"command": "<command>", "args": ["optional", "args"], "reasoning": "why you chose this"}
+
+    Valid commands: travel, jump, dock, undock, mine, attack, scan, buy, sell, refuel, repair, craft, say, faction, msg, status, system, poi, base
   "#
 }
 

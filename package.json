@@ -5,7 +5,7 @@
   "module": "index.tsx",
   "type": "module",
   "scripts": {
-    "start": "bun run index.tsx",
+    "start": "bun baml-cli generate && bun run index.tsx",
     "dev": "DEBUG=true bun run index.tsx",
     "typecheck": "bun x tsc --noEmit",
     "baml": "bun baml-cli generate"

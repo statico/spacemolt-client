@@ -57,7 +57,7 @@ const colors = {
 };
 
 function progressBar(current: number, max: number, width: number = 12): string {
-  const pct = Math.max(0, Math.min(1, current / max));
+  const pct = max > 0 ? Math.max(0, Math.min(1, current / max)) : 0;
   const filled = Math.round(pct * width);
   const empty = width - filled;
   return '[' + '|'.repeat(filled) + '-'.repeat(empty) + ']';
@@ -136,9 +136,9 @@ const ShipStatusPanel = memo(function ShipStatusPanel({
     );
   }
 
-  const hullPct = ship.hull / ship.max_hull;
-  const shieldPct = ship.shield / ship.max_shield;
-  const fuelPct = ship.fuel / ship.max_fuel;
+  const hullPct = ship.max_hull > 0 ? ship.hull / ship.max_hull : 0;
+  const shieldPct = ship.max_shield > 0 ? ship.shield / ship.max_shield : 0;
+  const fuelPct = ship.max_fuel > 0 ? ship.fuel / ship.max_fuel : 0;
 
   return (
     <Box flexDirection="column" borderStyle="single" borderColor={inCombat ? colors.danger : colors.border} paddingX={1} height="100%">

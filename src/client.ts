@@ -194,102 +194,107 @@ export class SpaceMoltClient {
   }
 
   private handleMessage(data: string): void {
-    const trimmed = data.trim();
-    if (!trimmed) return;
+    let remaining = data.trim();
 
-    let msg: Message | null = null;
-    let rest = '';
+    // Process messages iteratively to avoid stack overflow with many concatenated messages
+    while (remaining) {
+      const trimmed = remaining;
+      remaining = '';
 
-    try {
-      msg = JSON.parse(trimmed) as Message;
-    } catch {
-      // Maybe multiple JSON objects concatenated (no newline): parse first object only
-      if (trimmed.startsWith('{')) {
-        let depth = 0;
-        let end = -1;
-        for (let i = 0; i < trimmed.length; i++) {
-          if (trimmed[i] === '{') depth++;
-          else if (trimmed[i] === '}') {
-            depth--;
-            if (depth === 0) {
-              end = i + 1;
-              break;
+      let msg: Message | null = null;
+      let rest = '';
+
+      try {
+        msg = JSON.parse(trimmed) as Message;
+      } catch {
+        // Maybe multiple JSON objects concatenated (no newline): parse first object only
+        if (trimmed.startsWith('{')) {
+          let depth = 0;
+          let end = -1;
+          for (let i = 0; i < trimmed.length; i++) {
+            if (trimmed[i] === '{') depth++;
+            else if (trimmed[i] === '}') {
+              depth--;
+              if (depth === 0) {
+                end = i + 1;
+                break;
+              }
+            }
+          }
+          if (end > 0) {
+            try {
+              msg = JSON.parse(trimmed.slice(0, end)) as Message;
+              rest = trimmed.slice(end).trim();
+            } catch {
+              // fall through
             }
           }
         }
-        if (end > 0) {
-          try {
-            msg = JSON.parse(trimmed.slice(0, end)) as Message;
-            rest = trimmed.slice(end).trim();
-          } catch {
-            // fall through
+        if (msg == null) {
+          // Server may send a raw token for 'registered' (non-JSON)
+          if (!trimmed.startsWith('[')) {
+            this.log('Received: (raw token)');
+            this.handleRegistered({ token: trimmed, player_id: '' });
+            return;
           }
-        }
-      }
-      if (msg == null) {
-        // Server may send a raw token for 'registered' (non-JSON)
-        if (!trimmed.startsWith('[')) {
-          this.log('Received: (raw token)');
-          this.handleRegistered({ token: trimmed, player_id: '' });
+          this.log('Error parsing message:', trimmed.slice(0, 100));
           return;
         }
-        this.log('Error parsing message:', trimmed.slice(0, 100));
-        return;
       }
+
+      const m = msg!;
+      this.log('Received:', m.type, m.payload);
+
+      switch (m.type) {
+        case 'welcome':
+          this.handleWelcome(m.payload as WelcomePayload);
+          break;
+        case 'registered':
+          this.handleRegistered(m.payload as RegisteredPayload);
+          break;
+        case 'logged_in':
+          this.handleLoggedIn(m.payload as LoggedInPayload);
+          break;
+        case 'error':
+          this.handleError(m.payload as ErrorPayload);
+          break;
+        case 'ok':
+          this.emit('ok', m.payload);
+          break;
+        case 'state_update':
+          this.handleStateUpdate(m.payload as StateUpdatePayload);
+          break;
+        case 'scan_result':
+          this.emit('scan_result', m.payload as ScanResultPayload);
+          break;
+        case 'chat_message':
+          this.emit('chat_message', m.payload as ChatMessage);
+          break;
+        case 'version_info':
+          this.emit('version_info', m.payload);
+          break;
+        case 'combat_update':
+          this.emit('combat_update', m.payload);
+          break;
+        case 'player_died':
+          this.emit('player_died', m.payload);
+          break;
+        case 'mining_yield':
+          this.emit('mining_yield', m.payload);
+          break;
+        case 'trade_offer_received':
+          this.emit('trade_offer_received', m.payload);
+          break;
+        case 'tick':
+          this.state.currentTick = (m.payload as { tick: number }).tick;
+          this.emit('tick', m.payload);
+          break;
+        default:
+          this.emit(m.type, m.payload);
+      }
+
+      remaining = rest;
     }
-
-    const m = msg!;
-    this.log('Received:', m.type, m.payload);
-
-    switch (m.type) {
-      case 'welcome':
-        this.handleWelcome(m.payload as WelcomePayload);
-        break;
-      case 'registered':
-        this.handleRegistered(m.payload as RegisteredPayload);
-        break;
-      case 'logged_in':
-        this.handleLoggedIn(m.payload as LoggedInPayload);
-        break;
-      case 'error':
-        this.handleError(m.payload as ErrorPayload);
-        break;
-      case 'ok':
-        this.emit('ok', m.payload);
-        break;
-      case 'state_update':
-        this.handleStateUpdate(m.payload as StateUpdatePayload);
-        break;
-      case 'scan_result':
-        this.emit('scan_result', m.payload as ScanResultPayload);
-        break;
-      case 'chat_message':
-        this.emit('chat_message', m.payload as ChatMessage);
-        break;
-      case 'version_info':
-        this.emit('version_info', m.payload);
-        break;
-      case 'combat_update':
-        this.emit('combat_update', m.payload);
-        break;
-      case 'player_died':
-        this.emit('player_died', m.payload);
-        break;
-      case 'mining_yield':
-        this.emit('mining_yield', m.payload);
-        break;
-      case 'trade_offer_received':
-        this.emit('trade_offer_received', m.payload);
-        break;
-      case 'tick':
-        this.state.currentTick = (m.payload as { tick: number }).tick;
-        this.emit('tick', m.payload);
-        break;
-      default:
-        this.emit(m.type, m.payload);
-    }
-
-    if (rest) this.handleMessage(rest);
   }
 
   private handleWelcome(payload: WelcomePayload): void {

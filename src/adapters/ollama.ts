@@ -70,9 +70,14 @@ export class OllamaAdapter implements LLMAdapter {
   async generateIdentity(playStyle: string): Promise<PlayerIdentity> {
     const prompt = buildIdentityPrompt(playStyle);
 
+    const controller = new AbortController();
+    const timeoutMs = 60_000; // 60s timeout for identity generation
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
       const response = await fetch(`${this.baseUrl}/api/chat`, {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: this.model,
@@ -91,6 +96,8 @@ export class OllamaAdapter implements LLMAdapter {
     } catch (err) {
       void logError('ollama', err);
       return parseIdentityResponse('');
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 }
