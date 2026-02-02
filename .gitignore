@@ -12,6 +12,7 @@ spacemolt-notes.md
 spacemolt-notebook.json
 spacemolt-map.md
 spacemolt-error.log
+spacemolt-debug.log
 
 # Environment
 .env

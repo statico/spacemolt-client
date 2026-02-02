@@ -4,8 +4,11 @@
  * No credentials → register. Has credentials → login. Then play forever.
  */
 
-// Suppress BAML debug logging before any imports
-process.env.BAML_LOG = 'warn';
+// Check for --debug flag early, before imports
+const debugMode = process.argv.includes('--debug') || process.argv.includes('-d');
+
+// Set BAML logging level based on debug mode
+process.env.BAML_LOG = debugMode ? 'info' : 'warn';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
@@ -16,6 +19,12 @@ import { loadCredentials, loadPlayStyle, savePlayStyle, saveCredentials, type Cr
 import type { ClientState } from './src/client';
 import type { GameAction, EmpireID } from './src/types';
 import { type AdapterType, createAdapter } from './src/adapters';
+import { setDebugMode } from './src/logger';
+
+// Enable debug logging if --debug flag is set
+if (debugMode) {
+  setDebugMode(true);
+}
 
 const args = process.argv.slice(2);
 let adapterType: AdapterType = 'ollama';

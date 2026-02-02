@@ -35,6 +35,9 @@ bun start --adapter groq
 
 # Override model for any adapter
 bun start --adapter claude --model claude-sonnet-4-20250514
+
+# Enable debug logging (writes to spacemolt-debug.log)
+bun start --debug
 ```
 
 ## Configuration

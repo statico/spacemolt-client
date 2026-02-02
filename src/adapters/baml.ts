@@ -1,9 +1,9 @@
-import { ClientRegistry } from '@boundaryml/baml';
+import { ClientRegistry, Collector } from '@boundaryml/baml';
 import { b, Command, Empire } from '../../baml_client';
 import type { GameAction as BamlGameAction, PlayerIdentity as BamlPlayerIdentity } from '../../baml_client';
 import type { GameAction, EmpireID } from '../types';
 import type { ClientState } from '../client';
-import { logError } from '../logger';
+import { logError, logDebug, isDebugMode } from '../logger';
 
 export type AdapterType = 'ollama' | 'claude' | 'openai' | 'gemini' | 'groq';
 
@@ -179,10 +179,45 @@ export class BamlAdapter implements LLMAdapter {
     const gameState = buildStatePrompt(state, recentEvents, notes);
     const events = recentEvents.slice(-10).join('\n');
 
+    // Use collector to capture full request/response for debugging
+    const collector = isDebugMode() ? new Collector('debug') : undefined;
+
+    void logDebug('baml', `=== DecideAction Request ===`);
+    void logDebug('baml', `Model: ${this.model}`);
+    void logDebug('baml', `Strategy: ${strategy}`);
+    void logDebug('baml', `Game State:\n${gameState}`);
+    void logDebug('baml', `Recent Events:\n${events}`);
+
     try {
       const result: BamlGameAction = await b.DecideAction(gameState, strategy, events, {
         clientRegistry: this.registry,
+        collector,
       });
+
+      // Log collector data (includes raw LLM request/response)
+      if (collector) {
+        const logs = collector.logs;
+        for (const log of logs) {
+          void logDebug('baml-collector', `Function: ${log.functionName}`, {
+            timing: log.timing,
+            usage: log.usage,
+            rawLlmResponse: log.rawLlmResponse,
+          });
+          // Log raw HTTP request/response from LLM calls
+          for (const call of log.calls) {
+            const httpReq = call.httpRequest;
+            if (httpReq) {
+              void logDebug('baml-http', `LLM Request to ${httpReq.url}`, {
+                method: httpReq.method,
+                headers: httpReq.headers,
+                body: httpReq.body?.text(),
+              });
+            }
+          }
+        }
+      }
+
+      void logDebug('baml', `=== DecideAction Response ===`, result);
 
       return {
         command: commandMap[result.command] || 'status',
@@ -190,7 +225,29 @@ export class BamlAdapter implements LLMAdapter {
         reasoning: result.reasoning || '',
       };
     } catch (err) {
+      // Log collector data even on error
+      if (collector) {
+        const logs = collector.logs;
+        for (const log of logs) {
+          void logDebug('baml-collector-error', `Function: ${log.functionName}`, {
+            timing: log.timing,
+            rawLlmResponse: log.rawLlmResponse,
+          });
+          // Log raw HTTP request/response from LLM calls
+          for (const call of log.calls) {
+            const httpReq = call.httpRequest;
+            if (httpReq) {
+              void logDebug('baml-http-error', `LLM Request to ${httpReq.url}`, {
+                method: httpReq.method,
+                body: httpReq.body?.text(),
+              });
+            }
+          }
+        }
+      }
+
       void logError('baml', `Model: ${this.model}, Error: ${err}`);
+      void logDebug('baml', `=== DecideAction Error ===`, String(err));
       return { command: 'status', reasoning: 'LLM error, checking status' };
     }
   }
