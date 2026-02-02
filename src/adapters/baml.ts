@@ -241,8 +241,11 @@ export class BamlAdapter implements LLMAdapter {
 
       void logDebug('baml', `=== DecideAction Response ===`, result);
 
+      const mappedCommand = result.command in commandMap
+        ? commandMap[result.command]
+        : 'status';
       return {
-        command: commandMap[result.command] || 'status',
+        command: mappedCommand,
         args: result.args || [],
         reasoning: result.reasoning || '',
       };
@@ -282,9 +285,12 @@ export class BamlAdapter implements LLMAdapter {
         })
       );
 
+      const mappedEmpire = result.empire in empireMap
+        ? empireMap[result.empire]
+        : 'outerrim';
       return {
         username: result.username || `Pilot${Math.floor(Math.random() * 1000)}`,
-        empire: empireMap[result.empire] || 'outerrim',
+        empire: mappedEmpire,
       };
     } catch (err) {
       void logError('baml', `Identity generation error: ${err}`);

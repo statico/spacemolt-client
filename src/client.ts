@@ -169,10 +169,13 @@ export class SpaceMoltClient {
     if (this.reconnectTimeout) return;
 
     this.reconnectAttempts++;
-    const delay = Math.min(
+    const baseDelay = Math.min(
       this.options.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1),
       60000
     );
+    // Add jitter (±20%) to prevent thundering herd on server restart
+    const jitter = baseDelay * 0.2 * (Math.random() * 2 - 1);
+    const delay = Math.round(baseDelay + jitter);
 
     this.log(`Reconnecting in ${Math.round(delay / 1000)}s (attempt ${this.reconnectAttempts})...`);
     this.emit('reconnecting', { attempt: this.reconnectAttempts, delay });

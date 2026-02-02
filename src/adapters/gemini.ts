@@ -37,7 +37,9 @@ export class GeminiAdapter implements LLMAdapter {
 
       const result = await model.generateContent(userPrompt);
       const content = result.response?.text?.() ?? '';
-
+      if (!content) {
+        void logError('gemini', `Empty response from model ${this.model}`);
+      }
       return parseActionResponse(content || '{}');
     } catch (err) {
       void logError('gemini', err);

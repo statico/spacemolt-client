@@ -40,6 +40,7 @@ export class ClaudeAdapter implements LLMAdapter {
 
       const content = response.content[0];
       if (!content || content.type !== 'text') {
+        void logError('claude', `Empty or non-text response from model ${this.model}`);
         return { command: 'status', reasoning: 'Unexpected or empty response' };
       }
 

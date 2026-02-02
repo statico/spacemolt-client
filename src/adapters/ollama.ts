@@ -14,8 +14,16 @@ export class OllamaAdapter implements LLMAdapter {
   private model: string;
 
   constructor(config: OllamaConfig = {}) {
-    this.baseUrl = config.baseUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
-    this.model = config.model || process.env.OLLAMA_MODEL || 'gpt-oss:20b';
+    const url = config.baseUrl || process.env.OLLAMA_URL || 'http://localhost:11434';
+    // Validate URL format
+    try {
+      new URL(url);
+      this.baseUrl = url.replace(/\/$/, ''); // Remove trailing slash
+    } catch {
+      void logError('ollama', `Invalid base URL: ${url}, using default`);
+      this.baseUrl = 'http://localhost:11434';
+    }
+    this.model = config.model || process.env.OLLAMA_MODEL || 'llama3.2';
   }
 
   async generateAction(

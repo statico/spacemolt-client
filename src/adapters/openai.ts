@@ -44,6 +44,9 @@ export class OpenAIAdapter implements LLMAdapter {
       });
 
       const content = response.choices[0]?.message?.content || '';
+      if (!content) {
+        void logError('openai', `Empty response from model ${this.model}`);
+      }
       return parseActionResponse(content);
     } catch (err) {
       void logError('openai', err);
