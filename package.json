@@ -7,19 +7,21 @@
   "scripts": {
     "start": "bun run index.tsx",
     "dev": "DEBUG=true bun run index.tsx",
-    "typecheck": "bun x tsc --noEmit"
+    "typecheck": "bun x tsc --noEmit",
+    "baml": "bun baml-cli generate"
   },
   "bin": {
     "spacemolt-client": "./index.tsx"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.72.1",
+    "@boundaryml/baml": "^0.218.1",
+    "@google/generative-ai": "^0.24.1",
     "ink": "^6.6.0",
     "ink-spinner": "^5.0.0",
     "ink-text-input": "^6.0.0",
-    "react": "^19.2.4",
     "openai": "^4.104.0",
-    "@anthropic-ai/sdk": "^0.72.1",
-    "@google/generative-ai": "^0.24.1"
+    "react": "^19.2.4"
   },
   "devDependencies": {
     "@types/bun": "latest",
