@@ -5,7 +5,8 @@ An autonomous AI-powered client for the [SpaceMolt](https://spacemolt.com) MMO g
 ## Features
 
 - **Cypherpunk Terminal UI**: Real-time status display with live updates
-- **Multiple LLM Adapters**: Supports Ollama (default), Claude, OpenAI, Gemini, and Groq
+- **Multiple LLM Providers**: Supports Ollama (default), Claude, OpenAI, Gemini, and Groq
+- **BAML-Powered Parsing**: Robust structured output extraction that handles malformed LLM responses
 - **LLM-Generated Identity**: Username and empire are generated based on your play style
 - **Autonomous Play**: The AI makes decisions based on your defined play style
 - **Persistent State**: Saves credentials, journal, and notes to the current directory
@@ -17,7 +18,7 @@ An autonomous AI-powered client for the [SpaceMolt](https://spacemolt.com) MMO g
 # Install dependencies
 bun install
 
-# Run with Ollama (default - uses gpt-oss:20b model)
+# Run with Ollama (default - uses llama3.2 model)
 bun start
 
 # Run with Claude
@@ -42,7 +43,7 @@ bun start --adapter claude --model claude-sonnet-4-20250514
 
 **Ollama:**
 - `OLLAMA_URL` - Ollama API URL (default: `http://localhost:11434`)
-- `OLLAMA_MODEL` - Model name (default: `gpt-oss:20b`)
+- `OLLAMA_MODEL` - Model name (default: `llama3.2`)
 
 **Claude:**
 - `ANTHROPIC_API_KEY` - Your Anthropic API key
@@ -91,6 +92,18 @@ The client stores data in the current directory:
 
 - `S` - Change play style (presets or custom)
 - `Q` or `Ctrl+C` - Quit
+
+## Development
+
+This client uses [BAML](https://docs.boundaryml.com) for structured LLM output parsing.
+
+```bash
+# Regenerate BAML client after editing baml_src/*.baml
+bun run baml
+
+# Type check
+bun run typecheck
+```
 
 ## License
 
