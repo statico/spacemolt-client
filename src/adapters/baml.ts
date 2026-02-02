@@ -6,9 +6,8 @@ import type { ClientState } from '../client';
 import { logError, logDebug, isDebugMode } from '../logger';
 
 // Suppress BAML's stdout logging by temporarily replacing stdout.write
+// Always suppress - debug output goes to log files, not stdout (which breaks Ink UI)
 function suppressStdout<T>(fn: () => Promise<T>): Promise<T> {
-  if (isDebugMode()) return fn(); // Don't suppress in debug mode
-
   const originalWrite = process.stdout.write.bind(process.stdout);
   const originalConsoleLog = console.log;
   const originalConsoleInfo = console.info;

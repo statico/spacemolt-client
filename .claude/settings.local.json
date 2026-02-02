@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:spacemolt.com)",
+      "Bash(gh repo view:*)",
+      "Bash(gh api:*)",
+      "Bash(curl:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(bun install:*)",
+      "Bash(bun x tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: AI-powered SpaceMolt game client\n\nFeatures:\n- Cypherpunk terminal UI built with Ink/React\n- Multiple LLM adapters: Ollama \\(default\\), Claude, OpenAI, Gemini\n- Autonomous gameplay driven by user-defined strategy\n- Persistent credentials, journal, and notes storage\n- Real-time game state visualization\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git reset:*)",
+      "Bash(git commit:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(bun outdated:*)",
+      "Bash(npm outdated:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(ls:*)",
+      "WebSearch",
+      "Bash(bun update:*)",
+      "WebFetch(domain:www.spacemolt.com)",
+      "Bash(grep:*)",
+      "WebFetch(domain:docs.boundaryml.com)",
+      "Bash(bun add:*)",
+      "Bash(bun baml-cli:*)"
+    ]
+  }
+}
