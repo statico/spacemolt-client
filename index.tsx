@@ -78,8 +78,15 @@ function GameScreen({
   const [notebook, setNotebook] = useState<Notebook>({ disposition: '', goals: [], notes: '' });
   const [engine, setEngine] = useState<GameEngine | null>(null);
 
+  // Use a stable log handler that avoids recreating arrays unnecessarily
   const handleLog = useCallback((entry: LogEntry) => {
-    setLogs((prev) => [...prev.slice(-100), entry]);
+    setLogs((prev) => {
+      // Only slice if we're at the limit to reduce array allocations
+      if (prev.length >= 100) {
+        return [...prev.slice(-99), entry];
+      }
+      return [...prev, entry];
+    });
   }, []);
 
   const handleQuit = useCallback(() => {
