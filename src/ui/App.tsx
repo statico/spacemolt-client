@@ -490,7 +490,7 @@ export const App = memo(function App({
       <Header state={state} adapterName={adapterName} modelName={modelName} width={terminalWidth} />
 
       <Box flexDirection="row" height={mainPanelHeight}>
-        <Box width={30}>
+        <Box width={32}>
           <ShipStatusPanel state={state} thinking={thinking} action={currentAction} />
         </Box>
 

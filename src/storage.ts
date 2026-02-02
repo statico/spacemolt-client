@@ -163,7 +163,7 @@ function parseNotebook(text: string): Notebook {
     } else if (line.startsWith('## Notes')) {
       section = 'notes';
     } else if (section === 'disposition' && line.trim()) {
-      disposition = line.trim();
+      disposition += (disposition ? '\n' : '') + line.trim();
     } else if (section === 'goals' && line.trim().startsWith('- ')) {
       goals.push(line.trim().slice(2));
     } else if (section === 'notes' && line.trim()) {
