@@ -8,7 +8,8 @@
 const debugMode = process.argv.includes('--debug') || process.argv.includes('-d');
 
 // Set BAML logging level based on debug mode
-process.env.BAML_LOG = debugMode ? 'info' : 'warn';
+// Use 'error' to suppress all info/warn output that corrupts the terminal UI
+process.env.BAML_LOG = debugMode ? 'info' : 'error';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
