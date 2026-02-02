@@ -1,4 +1,5 @@
 import { existsSync } from 'fs';
+import { logError } from './logger';
 
 const CREDENTIALS_FILE = '.spacemolt-credentials.json';
 const PLAY_STYLE_FILE = '.spacemolt-playstyle';
@@ -56,13 +57,21 @@ export async function saveCredentials(credentials: Credentials): Promise<void> {
       // ignore
     }
   }
-  await Bun.write(CREDENTIALS_FILE, JSON.stringify(credentials, null, 2));
+  try {
+    await Bun.write(CREDENTIALS_FILE, JSON.stringify(credentials, null, 2));
+  } catch (err) {
+    void logError('storage', `Failed to save credentials: ${err}`);
+  }
 }
 
 /** Save play style as soon as user enters it (before registration or other async work). */
 export async function savePlayStyle(playStyle: string): Promise<void> {
   if (!playStyle.trim()) return;
-  await Bun.write(PLAY_STYLE_FILE, playStyle.trim());
+  try {
+    await Bun.write(PLAY_STYLE_FILE, playStyle.trim());
+  } catch (err) {
+    void logError('storage', `Failed to save play style: ${err}`);
+  }
 }
 
 export async function loadPlayStyle(): Promise<string | null> {
@@ -91,10 +100,14 @@ export async function loadJournal(): Promise<string> {
 }
 
 export async function appendJournal(entry: string): Promise<void> {
-  const existing = await loadJournal();
-  const timestamp = new Date().toISOString();
-  const newEntry = `\n## ${timestamp}\n\n${entry}\n`;
-  await Bun.write(JOURNAL_FILE, existing + newEntry);
+  try {
+    const existing = await loadJournal();
+    const timestamp = new Date().toISOString();
+    const newEntry = `\n## ${timestamp}\n\n${entry}\n`;
+    await Bun.write(JOURNAL_FILE, existing + newEntry);
+  } catch (err) {
+    void logError('storage', `Failed to append journal: ${err}`);
+  }
 }
 
 export async function loadNotes(): Promise<string> {
@@ -186,7 +199,11 @@ ${notebook.goals.map(g => `- ${g}`).join('\n')}
 ## Notes
 ${notebook.notes}
 `;
-  await Bun.write(NOTEBOOK_FILE, content);
+  try {
+    await Bun.write(NOTEBOOK_FILE, content);
+  } catch (err) {
+    void logError('storage', `Failed to save notebook: ${err}`);
+  }
 }
 
 export async function loadAllData(): Promise<StoredData> {
