@@ -5,19 +5,23 @@ import type { GameAction, EmpireID } from '../types';
 import type { ClientState } from '../client';
 import { logError, logDebug, isDebugMode } from '../logger';
 
-// Suppress BAML's stdout logging by temporarily replacing console methods
-function suppressConsole<T>(fn: () => Promise<T>): Promise<T> {
+// Suppress BAML's stdout logging by temporarily replacing stdout.write
+function suppressStdout<T>(fn: () => Promise<T>): Promise<T> {
   if (isDebugMode()) return fn(); // Don't suppress in debug mode
 
-  const originalLog = console.log;
-  const originalInfo = console.info;
-  // Suppress console.log and console.info during BAML calls
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  const originalConsoleLog = console.log;
+  const originalConsoleInfo = console.info;
+
+  // Suppress all stdout during BAML calls
+  process.stdout.write = () => true;
   console.log = () => {};
   console.info = () => {};
 
   return fn().finally(() => {
-    console.log = originalLog;
-    console.info = originalInfo;
+    process.stdout.write = originalWrite;
+    console.log = originalConsoleLog;
+    console.info = originalConsoleInfo;
   });
 }
 
@@ -205,7 +209,7 @@ export class BamlAdapter implements LLMAdapter {
     void logDebug('baml', `Recent Events:\n${events}`);
 
     try {
-      const result: BamlGameAction = await suppressConsole(() =>
+      const result: BamlGameAction = await suppressStdout(() =>
         b.DecideAction(gameState, strategy, events, {
           clientRegistry: this.registry,
           collector,
@@ -272,7 +276,7 @@ export class BamlAdapter implements LLMAdapter {
 
   async generateIdentity(playStyle: string): Promise<PlayerIdentity> {
     try {
-      const result: BamlPlayerIdentity = await suppressConsole(() =>
+      const result: BamlPlayerIdentity = await suppressStdout(() =>
         b.GenerateIdentity(playStyle, {
           clientRegistry: this.registry,
         })
