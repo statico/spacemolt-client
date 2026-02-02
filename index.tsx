@@ -4,6 +4,9 @@
  * No credentials → register. Has credentials → login. Then play forever.
  */
 
+// Suppress BAML debug logging before any imports
+process.env.BAML_LOG = 'warn';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
 import Spinner from 'ink-spinner';
