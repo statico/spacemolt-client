@@ -7,9 +7,14 @@
 // Check for --debug flag early, before imports
 const debugMode = process.argv.includes('--debug') || process.argv.includes('-d');
 
-// Set BAML logging level based on debug mode
-// Use 'error' to suppress all info/warn output that corrupts the terminal UI
-process.env.BAML_LOG = debugMode ? 'info' : 'error';
+// Suppress BAML's native Rust logging unless in debug mode
+// BAML uses tracing/env_logger which respects RUST_LOG
+if (!debugMode) {
+  process.env.BAML_LOG = 'off';
+  process.env.RUST_LOG = 'off';
+} else {
+  process.env.BAML_LOG = 'info';
+}
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
